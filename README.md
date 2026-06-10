@@ -26,7 +26,11 @@ npm install
 npm run dev
 ```
 
-3. Load the generated Chromium extension from the `.output/chrome-mv3` directory.
+3. Open your existing Chrome window and visit `chrome://extensions`.
+
+4. Enable developer mode.
+
+5. Load the generated Chromium extension from the `.output/chrome-mv3` directory.
 
 ## Validation
 

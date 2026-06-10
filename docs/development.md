@@ -8,10 +8,12 @@ Lyra injects a lyrics overlay into `https://open.spotify.com/*`, detects the cur
 
 1. Run `npm install`.
 2. Run `npm run dev`.
-3. Open Chromium and visit the extensions page.
+3. Open your existing Chrome window and visit `chrome://extensions`.
 4. Enable developer mode.
 5. Load the unpacked extension from `.output/chrome-mv3`.
 6. Open Spotify Web Player and verify the Lyra overlay appears after the page finishes loading.
+
+`npm run dev` no longer launches a separate Chrome window automatically. Lyra now uses WXT's manual runner so development happens inside your own Chrome session.
 
 ## Manual smoke checklist
 
