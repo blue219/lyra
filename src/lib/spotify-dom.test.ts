@@ -17,6 +17,7 @@ describe('readCurrentTrackIdentity', () => {
       </div>
       <div aria-label="Now playing bar">
         <span data-testid="playback-position">2:16</span>
+        <span data-testid="playback-duration">3:49</span>
       </div>
     `;
 
@@ -24,6 +25,7 @@ describe('readCurrentTrackIdentity', () => {
       title: 'Home Sweet Home',
       artists: ['YUKI'],
       album: undefined,
+      durationSeconds: 229,
     });
   });
 
@@ -46,6 +48,7 @@ describe('readCurrentTrackIdentity', () => {
       title: 'One Last Time',
       artists: ['Ariana Grande'],
       album: 'my everything tenth anniversary edition',
+      durationSeconds: undefined,
     });
   });
 });
@@ -59,5 +62,24 @@ describe('readPlaybackPositionMs', () => {
     `;
 
     expect(readPlaybackPositionMs(document)).toBe(83_000);
+  });
+
+  test('does not treat a lone playback position as track duration', () => {
+    document.body.innerHTML = `
+      <div aria-label="Now playing: Home Sweet Home by YUKI">
+        <a href="/album/2vdO2JMP1Oiko95nJHU8ej">Home Sweet Home</a>
+        <a href="/artist/380DW51qbu5pSP8crFRIII">YUKI</a>
+      </div>
+      <footer>
+        <span data-testid="playback-position">1:23</span>
+      </footer>
+    `;
+
+    expect(readCurrentTrackIdentity(document)).toEqual({
+      title: 'Home Sweet Home',
+      artists: ['YUKI'],
+      album: undefined,
+      durationSeconds: undefined,
+    });
   });
 });

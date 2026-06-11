@@ -36,6 +36,7 @@ describe('toLyricsResult', () => {
           translatedLanguage: 'zh-CN',
         },
       ],
+      sourceLanguage: 'en-US',
     });
   });
 
@@ -63,6 +64,57 @@ describe('toLyricsResult', () => {
           original: 'World',
         },
       ],
+      sourceLanguage: 'en-US',
+    });
+  });
+
+  test('parses synced LRCLIB lyrics with millisecond precision timestamps', () => {
+    const payload: LrclibLyricsResponse = {
+      id: 1,
+      trackName: 'Track',
+      artistName: 'Artist',
+      albumName: 'Album',
+      duration: 180,
+      instrumental: false,
+      plainLyrics: 'Hello',
+      syncedLyrics: '[00:01.234] Hello',
+    };
+
+    expect(toLyricsResult(payload)).toEqual({
+      status: 'monolingual',
+      lines: [
+        {
+          timeMs: 1_234,
+          original: 'Hello',
+        },
+      ],
+      sourceLanguage: 'en-US',
+    });
+  });
+
+  test('places the selected target language in the translated line when an embedded pair is reversed', () => {
+    const payload: LrclibLyricsResponse = {
+      id: 1,
+      trackName: 'Track',
+      artistName: 'Artist',
+      albumName: 'Album',
+      duration: 180,
+      instrumental: false,
+      plainLyrics: '歩きつかれて',
+      syncedLyrics: '[00:01.00] Tired from walking / 歩きつかれて',
+    };
+
+    expect(toLyricsResult(payload, 'en-US')).toEqual({
+      status: 'bilingual',
+      lines: [
+        {
+          timeMs: 1_000,
+          original: '歩きつかれて',
+          translated: 'Tired from walking',
+          translatedLanguage: 'en-US',
+        },
+      ],
+      sourceLanguage: 'ja-JP',
     });
   });
 

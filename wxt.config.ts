@@ -7,7 +7,7 @@ export default defineConfig({
     name: 'Lyra',
     description: 'View bilingual lyrics directly in Spotify Web Player.',
     permissions: ['storage'],
-    host_permissions: ['https://lrclib.net/*'],
+    host_permissions: ['https://lrclib.net/*', 'https://translate.googleapis.com/*'],
   },
   vite: () => ({
     plugins: [tailwindcss()],

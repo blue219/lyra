@@ -27,4 +27,36 @@ describe('requestLyrics', () => {
       lines: [],
     });
   });
+
+  test('includes the target language in lyrics requests', async () => {
+    const sendMessage = vi.fn(() =>
+      Promise.resolve({
+        status: 'unavailable',
+        lines: [],
+      }),
+    );
+
+    (globalThis as Record<string, unknown>).browser = {
+      runtime: {
+        sendMessage,
+      },
+    } as unknown as typeof browser;
+
+    await requestLyrics(
+      {
+        title: 'Home Sweet Home',
+        artists: ['YUKI'],
+      },
+      'en-US',
+    );
+
+    expect(sendMessage).toHaveBeenCalledWith({
+      type: 'lyra:fetchLyrics',
+      track: {
+        title: 'Home Sweet Home',
+        artists: ['YUKI'],
+      },
+      targetLanguage: 'en-US',
+    });
+  });
 });

@@ -2,6 +2,7 @@ export interface TrackIdentity {
   title: string;
   artists: string[];
   album?: string;
+  durationSeconds?: number;
 }
 
 export interface LyricLine {
@@ -14,6 +15,7 @@ export interface LyricLine {
 export interface LyricsResult {
   status: 'bilingual' | 'monolingual' | 'unavailable';
   lines: LyricLine[];
+  sourceLanguage?: string;
 }
 
 export interface OverlaySettings {

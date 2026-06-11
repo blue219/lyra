@@ -262,9 +262,20 @@ function StatusBanner({ phase, lyrics, settings }: StatusBannerProps) {
   }
 
   if (phase === 'ready' && lyrics.status === 'monolingual') {
+    const languageDisplayNames: Record<string, string> = {
+      'en-US': 'English',
+      'ja-JP': 'Japanese',
+      'zh-CN': 'Chinese (Simplified)',
+      'zh-TW': 'Chinese (Traditional)',
+      'es-ES': 'Spanish',
+    };
+    const sourceLabel = lyrics.sourceLanguage
+      ? (languageDisplayNames[lyrics.sourceLanguage] ?? lyrics.sourceLanguage) + ' · '
+      : '';
+
     return (
       <div className="rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-[10px] font-bold uppercase tracking-[1.8px] text-[var(--lyra-color-muted)]">
-        Translation unavailable for {settings.targetLanguage}
+        {sourceLabel}Translation unavailable for {settings.targetLanguage}
       </div>
     );
   }

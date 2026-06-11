@@ -116,17 +116,19 @@ export function ContentApp() {
     setPhase('loading');
     setLyrics(emptyLyricsResult);
 
-    requestLyrics(track)
+    requestLyrics(track, settings.targetLanguage)
       .then((nextLyrics) => {
         if (isCancelled) {
           return;
         }
 
+        console.log('[Lyra] content received lyrics:', nextLyrics.status, nextLyrics.lines.length);
         setLyrics(nextLyrics);
         setPhase(nextLyrics.status === 'unavailable' ? 'unavailable' : 'ready');
       })
       .catch(() => {
         if (!isCancelled) {
+          console.error('[Lyra] content lyrics fetch rejected');
           setLyrics(emptyLyricsResult);
           setPhase('error');
         }
@@ -135,7 +137,7 @@ export function ContentApp() {
     return () => {
       isCancelled = true;
     };
-  }, [track]);
+  }, [settings.targetLanguage, track]);
 
   function updateSettings(patch: Partial<OverlaySettings>) {
     setSettings((currentSettings) => {

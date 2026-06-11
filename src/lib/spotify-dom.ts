@@ -73,6 +73,7 @@ export function readCurrentTrackIdentity(
     title,
     artists: uniqueValues(artists),
     album,
+    durationSeconds: readPlaybackDurationSeconds(rootDocument),
   };
 }
 
@@ -108,6 +109,7 @@ function readTrackIdentityFromNowPlayingRegion(
   return {
     title,
     artists: uniqueValues(artists),
+    durationSeconds: readPlaybackDurationSeconds(rootDocument),
   };
 }
 
@@ -144,6 +146,37 @@ export function readPlaybackPositionMs(
   }
 
   return null;
+}
+
+function readPlaybackDurationSeconds(rootDocument: Document): number | undefined {
+  const explicitPlaybackDuration = rootDocument.querySelector<HTMLElement>(
+    '[data-testid="playback-duration"]',
+  );
+  const explicitValue = parseTimestampToMs(
+    explicitPlaybackDuration?.textContent ?? '',
+  );
+
+  if (explicitValue !== null) {
+    return Math.round(explicitValue / 1000);
+  }
+
+  const footer = rootDocument.querySelector('footer');
+
+  if (!footer) {
+    return undefined;
+  }
+
+  const timestamps = Array.from(footer.querySelectorAll<HTMLElement>('span, div'))
+    .filter(isVisibleElement)
+    .map((candidate) => parseTimestampToMs(candidate.textContent ?? ''))
+    .filter((value): value is number => value !== null);
+
+  if (timestamps.length < 2) {
+    return undefined;
+  }
+
+  const durationMs = timestamps.at(-1);
+  return durationMs === undefined ? undefined : Math.round(durationMs / 1000);
 }
 
 function findFirstVisibleElement(
