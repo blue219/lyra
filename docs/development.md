@@ -51,6 +51,14 @@ LRCLIB is now a fallback source for original synced lyrics only. Lyra does not u
 
 Fallback lookup uses LRCLIB search with track and artist first, then track-only search if no artist-constrained match is found. The selected synced lyrics are parsed as original text, cleaned of ASS/SSA style override tags, and translated through LibreTranslate.
 
+## Lyrics cache behavior
+
+Lyra caches lyrics in the background service worker and persists valid entries to `chrome.storage.local` under `lyricsCache`. Cache hydration is awaited before the first lyrics request checks the cache, so service worker restarts can reuse stored entries before refetching.
+
+The cache keeps up to 200 recently used entries with LRU eviction. Successful bilingual results and normal monolingual results are cached for 30 minutes. Unavailable results are cached for 5 minutes. Monolingual results produced while a target language is selected, but without a matching source language, are treated as translation degradation and cached for 2 minutes so Lyra retries translation soon after temporary service failures.
+
+Concurrent requests for the same cache key share one in-flight lyrics request. Spotify-sourced translation cache keys include the source, target language, and original lyric text. LRCLIB fallback cache keys include the normalized track identity and target language.
+
 ## Source language detection
 
 Lyra detects the source language through the configured LibreTranslate backend before translation. It sends all lyric lines as one newline-separated `q` value to `POST /detect`, maps `en` to `en-US` and `zh-Hans` to `zh-CN`, and treats that value as the source language for the whole lyrics result. If detection fails, returns an unsupported language, or matches the selected target language, Lyra keeps showing original lyrics.

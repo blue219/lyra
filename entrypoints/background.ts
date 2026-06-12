@@ -1,18 +1,27 @@
-import { LyricsCache } from '../src/features/lyrics/cache';
+import { createLyricsCacheController } from '../src/features/lyrics/cache-controller';
 import { fetchLyricsFromLrclib } from '../src/features/lyrics/lrclib';
 import {
   isFetchLyricsMessage,
   isTranslateLyricsMessage,
-  type TranslateLyricsMessage,
 } from '../src/features/lyrics/messages';
-import { createTrackCacheKey, normalizeTrackIdentity } from '../src/features/spotify/track';
 import { translateLyricsResult } from '../src/features/translation/translate';
 import { getExtensionApi } from '../src/shared/extension-api';
-import type { LyricsResult, TrackIdentity } from '../src/shared/types';
 
-const lyricsCache = new LyricsCache({
-  hitTtlMs: 1000 * 60 * 30,
-  missTtlMs: 1000 * 60 * 5,
+const CACHE_STORAGE_KEY = 'lyricsCache';
+const MAX_CACHE_ENTRIES = 200;
+const HIT_TTL_MS = 1000 * 60 * 30;
+const MISS_TTL_MS = 1000 * 60 * 5;
+const DEGRADED_TTL_MS = 1000 * 60 * 2;
+
+const lyricsCacheController = createLyricsCacheController({
+  storageKey: CACHE_STORAGE_KEY,
+  hitTtlMs: HIT_TTL_MS,
+  missTtlMs: MISS_TTL_MS,
+  degradedTtlMs: DEGRADED_TTL_MS,
+  maxEntries: MAX_CACHE_ENTRIES,
+  getStorage: () => getExtensionApi()?.storage?.local,
+  fetchLyrics: fetchLyricsFromLrclib,
+  translateLyrics: translateLyricsResult,
 });
 
 export default defineBackground(() => {
@@ -20,65 +29,13 @@ export default defineBackground(() => {
 
   extensionApi?.runtime?.onMessage.addListener((message) => {
     if (isFetchLyricsMessage(message)) {
-      return handleFetchLyrics(message.track, message.targetLanguage);
+      return lyricsCacheController.handleFetchLyrics(message.track, message.targetLanguage);
     }
 
     if (isTranslateLyricsMessage(message)) {
-      return handleTranslateLyrics(message);
+      return lyricsCacheController.handleTranslateLyrics(message);
     }
 
     return undefined;
   });
 });
-
-async function handleFetchLyrics(
-  track: TrackIdentity,
-  targetLanguage?: string,
-): Promise<LyricsResult> {
-  const normalizedTrack = normalizeTrackIdentity(track);
-  const cacheKey = ['fallback', createTrackCacheKey(normalizedTrack), targetLanguage ?? ''].join(
-    '__',
-  );
-  const cached = lyricsCache.get(cacheKey);
-
-  if (cached) {
-    return cached;
-  }
-
-  const lyrics = await translateLyricsResult(
-    await fetchLyricsFromLrclib(normalizedTrack),
-    targetLanguage,
-  );
-
-  console.log('[Lyra] bg fallback lyrics result:', lyrics.status, lyrics.lines.length);
-  lyricsCache.set(cacheKey, lyrics);
-  return lyrics;
-}
-
-async function handleTranslateLyrics(
-  message: TranslateLyricsMessage,
-): Promise<LyricsResult> {
-  const cacheKey = [
-    message.source ?? 'spotify',
-    message.targetLanguage ?? '',
-    message.lines.map((line) => line.original).join('\n'),
-  ].join('__');
-  const cached = lyricsCache.get(cacheKey);
-
-  if (cached) {
-    return cached;
-  }
-
-  const lyrics = await translateLyricsResult(
-    {
-      status: 'monolingual',
-      lines: message.lines,
-      source: message.source,
-    },
-    message.targetLanguage,
-  );
-
-  console.log('[Lyra] bg translated lyrics result:', lyrics.status, lyrics.lines.length);
-  lyricsCache.set(cacheKey, lyrics);
-  return lyrics;
-}
