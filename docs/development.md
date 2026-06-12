@@ -28,6 +28,17 @@ The current translation service supports English and Simplified Chinese. If tran
 - English and Simplified Chinese target language settings persist across refresh.
 - Font size and overlay position settings persist across refresh.
 
+## Code organization
+
+Lyra keeps extension entrypoints in `entrypoints/` and feature code in `src/features/`.
+
+- `overlay`: React UI and content-script state orchestration.
+- `spotify`: Spotify Web Player DOM readers and track identity helpers.
+- `lyrics`: synced lyric parsing, LRCLIB fallback, lyrics cache, and runtime messages.
+- `translation`: LibreTranslate request and response handling.
+- `settings`: overlay settings defaults and validation.
+- `shared`: cross-feature types and browser extension API helpers.
+
 ## Spotify lyrics behavior
 
 Lyra does not click Spotify controls or open the lyrics panel automatically. It only reads lyric lines already present in the page DOM. If no visible lyric lines can be read, the fallback LRCLIB flow is used.

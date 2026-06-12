@@ -1,7 +1,7 @@
-import { getExtensionApi, isExtensionContextInvalidatedError } from './extension-api';
+import { getExtensionApi, isExtensionContextInvalidatedError } from '../../shared/extension-api';
 import { fetchLyricsFromLrclib } from './lrclib';
-import { translateLyricsResult } from './translate';
-import type { LyricLine, LyricsResult, TrackIdentity } from './types';
+import { translateLyricsResult } from '../translation/translate';
+import type { LyricLine, LyricsResult, TrackIdentity } from '../../shared/types';
 
 export interface FetchLyricsMessage {
   type: 'lyra:fetchLyrics';

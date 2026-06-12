@@ -1,4 +1,4 @@
-import type { LyricsResult } from './types';
+import type { LyricsResult } from '../../shared/types';
 
 interface LyricsCacheOptions {
   hitTtlMs: number;
@@ -42,4 +42,3 @@ export class LyricsCache {
     });
   }
 }
-

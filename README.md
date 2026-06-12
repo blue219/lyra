@@ -14,6 +14,19 @@ The current development translation backend supports English and Simplified Chin
 - Tailwind CSS 4
 - Manifest V3
 
+## Project structure
+
+```text
+entrypoints/          WXT extension entrypoints
+src/features/overlay  Lyrics overlay UI and content app state
+src/features/spotify  Spotify Web Player DOM readers and track helpers
+src/features/lyrics   Lyric parsing, LRCLIB fallback, and lyrics messages
+src/features/translation  LibreTranslate integration
+src/features/settings Overlay settings defaults and validation
+src/shared            Cross-feature types and browser extension helpers
+docs/                 Development and API notes
+```
+
 ## Local development
 
 1. Install dependencies:

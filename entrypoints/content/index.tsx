@@ -2,8 +2,8 @@ import './style.css';
 
 import ReactDOM from 'react-dom/client';
 
-import { ContentApp } from '../../src/components/content-app';
-import { isExtensionContextInvalidatedError } from '../../src/lib/extension-api';
+import { ContentApp } from '../../src/features/overlay/content-app';
+import { isExtensionContextInvalidatedError } from '../../src/shared/extension-api';
 
 export default defineContentScript({
   matches: ['https://open.spotify.com/*'],

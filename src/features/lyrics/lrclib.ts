@@ -1,6 +1,6 @@
 import { toLyricsResult, type LrclibLyricsResponse } from './lyrics';
-import { normalizeTrackIdentity } from './track';
-import type { LyricsResult, TrackIdentity } from './types';
+import { normalizeTrackIdentity } from '../spotify/track';
+import type { LyricsResult, TrackIdentity } from '../../shared/types';
 
 const lrclibApiBaseUrl = 'https://lrclib.net/api';
 const lrclibClientName = 'Lyra 0.1.0';

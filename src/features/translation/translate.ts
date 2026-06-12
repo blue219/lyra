@@ -1,4 +1,4 @@
-import type { LyricLine, LyricsResult } from './types';
+import type { LyricLine, LyricsResult } from '../../shared/types';
 
 const defaultTranslateApiBaseUrl = 'http://154.44.10.127:5000';
 const lineSeparator = '␞';

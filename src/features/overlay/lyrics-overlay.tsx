@@ -1,5 +1,5 @@
-import { getLineTranslationForLanguage } from '../lib/lyrics';
-import type { LyricsResult, OverlaySettings, TrackIdentity } from '../lib/types';
+import { getLineTranslationForLanguage } from '../lyrics/lyrics';
+import type { LyricsResult, OverlaySettings, TrackIdentity } from '../../shared/types';
 
 interface LyricsOverlayProps {
   activeLineIndex: number;

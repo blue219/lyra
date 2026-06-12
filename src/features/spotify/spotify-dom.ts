@@ -1,4 +1,4 @@
-import type { LyricLine, TrackIdentity } from './types';
+import type { LyricLine, TrackIdentity } from '../../shared/types';
 
 const trackLinkSelectors = [
   '[aria-label^="Now playing:"] a[href^="/album/"]',

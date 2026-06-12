@@ -1,14 +1,14 @@
-import { LyricsCache } from '../src/lib/cache';
-import { getExtensionApi } from '../src/lib/extension-api';
-import { fetchLyricsFromLrclib } from '../src/lib/lrclib';
+import { LyricsCache } from '../src/features/lyrics/cache';
+import { fetchLyricsFromLrclib } from '../src/features/lyrics/lrclib';
 import {
   isFetchLyricsMessage,
   isTranslateLyricsMessage,
   type TranslateLyricsMessage,
-} from '../src/lib/messages';
-import { translateLyricsResult } from '../src/lib/translate';
-import { createTrackCacheKey, normalizeTrackIdentity } from '../src/lib/track';
-import type { LyricsResult, TrackIdentity } from '../src/lib/types';
+} from '../src/features/lyrics/messages';
+import { createTrackCacheKey, normalizeTrackIdentity } from '../src/features/spotify/track';
+import { translateLyricsResult } from '../src/features/translation/translate';
+import { getExtensionApi } from '../src/shared/extension-api';
+import type { LyricsResult, TrackIdentity } from '../src/shared/types';
 
 const lyricsCache = new LyricsCache({
   hitTtlMs: 1000 * 60 * 30,

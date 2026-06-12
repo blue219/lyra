@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'vitest';
 
 import { LyricsCache } from './cache';
-import type { LyricsResult } from './types';
+import type { LyricsResult } from '../../shared/types';
 
 const bilingualResult: LyricsResult = {
   status: 'bilingual',
@@ -43,4 +43,3 @@ describe('LyricsCache', () => {
     expect(cache.get('track-key', 7_000)).toBeNull();
   });
 });
-

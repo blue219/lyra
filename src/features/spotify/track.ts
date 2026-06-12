@@ -1,4 +1,4 @@
-import type { TrackIdentity } from './types';
+import type { TrackIdentity } from '../../shared/types';
 
 export function normalizeTrackIdentity(track: TrackIdentity): TrackIdentity {
   return {

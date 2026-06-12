@@ -1,17 +1,17 @@
 import { useEffect, useState } from 'react';
 
 import { LyricsOverlay } from './lyrics-overlay';
-import { detectSourceLanguage, findActiveLyricIndex } from '../lib/lyrics';
-import { requestLyrics, requestTranslatedLyrics } from '../lib/messages';
-import { getExtensionApi } from '../lib/extension-api';
-import { defaultOverlaySettings, sanitizeOverlaySettings } from '../lib/settings';
+import { detectSourceLanguage, findActiveLyricIndex } from '../lyrics/lyrics';
+import { requestLyrics, requestTranslatedLyrics } from '../lyrics/messages';
+import { defaultOverlaySettings, sanitizeOverlaySettings } from '../settings/settings';
 import {
   readCurrentTrackIdentity,
   readPlaybackPositionMs,
   readSpotifyLyricsSnapshot,
-} from '../lib/spotify-dom';
-import { createTrackCacheKey, normalizeTrackIdentity } from '../lib/track';
-import type { LyricLine, LyricsResult, OverlaySettings, TrackIdentity } from '../lib/types';
+} from '../spotify/spotify-dom';
+import { createTrackCacheKey, normalizeTrackIdentity } from '../spotify/track';
+import { getExtensionApi } from '../../shared/extension-api';
+import type { LyricLine, LyricsResult, OverlaySettings, TrackIdentity } from '../../shared/types';
 
 type OverlayPhase = 'waiting-track' | 'loading' | 'ready' | 'unavailable' | 'error';
 

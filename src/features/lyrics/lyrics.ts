@@ -1,4 +1,4 @@
-import type { LyricLine, LyricsResult } from './types';
+import type { LyricLine, LyricsResult } from '../../shared/types';
 
 export interface LrclibLyricsResponse {
   id: number;

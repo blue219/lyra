@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, test, vi } from 'vitest';
 
 import { translateLyricLines } from './translate';
-import type { LyricLine } from './types';
+import type { LyricLine } from '../../shared/types';
 
 const simpleLines: LyricLine[] = [
   { timeMs: 1_000, original: 'Hello' },

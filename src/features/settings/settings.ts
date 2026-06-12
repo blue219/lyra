@@ -1,4 +1,4 @@
-import type { OverlaySettings } from './types';
+import type { OverlaySettings } from '../../shared/types';
 
 const fontSizes = new Set<OverlaySettings['fontSize']>(['sm', 'md', 'lg']);
 const targetLanguages = new Set(['en-US', 'zh-CN']);
