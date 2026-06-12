@@ -8,10 +8,29 @@ import { createLyricsOverlayGate } from '../../src/features/overlay/overlay-gate
 import { hasVisibleSpotifyLyrics } from '../../src/features/spotify/spotify-dom';
 import { isExtensionContextInvalidatedError } from '../../src/shared/extension-api';
 
+function injectLyricsHoverOverride() {
+  const style = document.createElement('style');
+  style.setAttribute('data-lyra', 'hover-override');
+  style.textContent = `
+    [data-testid="lyrics-line"]:hover,
+    [data-testid="lyrics-line"]:hover *,
+    [data-lyric-index]:hover {
+      background: transparent !important;
+      background-color: transparent !important;
+      text-decoration: none !important;
+      border-left: none !important;
+      color: inherit !important;
+    }
+  `;
+  document.head.append(style);
+}
+
 export default defineContentScript({
   matches: ['https://open.spotify.com/*'],
   cssInjectionMode: 'ui',
   main(ctx) {
+    injectLyricsHoverOverride();
+
     const gate = createLyricsOverlayGate({
       hasVisibleLyrics: () => hasVisibleSpotifyLyrics(),
       mountOverlay: async () => {
