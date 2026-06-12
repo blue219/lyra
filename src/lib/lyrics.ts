@@ -11,12 +11,7 @@ export interface LrclibLyricsResponse {
   syncedLyrics?: string | null;
 }
 
-const translationSeparators = [' / ', ' | ', ' ／ ', ' ｜ '];
-
-export function toLyricsResult(
-  payload: LrclibLyricsResponse,
-  targetLanguage?: string,
-): LyricsResult {
+export function toLyricsResult(payload: LrclibLyricsResponse): LyricsResult {
   if (payload.instrumental || !payload.syncedLyrics?.trim()) {
     return {
       status: 'unavailable',
@@ -24,7 +19,7 @@ export function toLyricsResult(
     };
   }
 
-  const lines = parseSyncedLyrics(payload.syncedLyrics, targetLanguage);
+  const lines = parseSyncedLyrics(payload.syncedLyrics);
 
   if (lines.length === 0) {
     return {
@@ -33,12 +28,11 @@ export function toLyricsResult(
     };
   }
 
-  const hasTranslations = lines.some((line) => Boolean(line.translated));
-
   return {
-    status: hasTranslations ? 'bilingual' : 'monolingual',
+    status: 'monolingual',
     lines,
     sourceLanguage: detectSourceLanguage(lines),
+    source: 'lrclib',
   };
 }
 
@@ -74,18 +68,15 @@ export function getLineTranslationForLanguage(
   return line.translatedLanguage === targetLanguage ? line.translated : undefined;
 }
 
-function parseSyncedLyrics(
-  syncedLyrics: string,
-  targetLanguage?: string,
-): LyricLine[] {
+function parseSyncedLyrics(syncedLyrics: string): LyricLine[] {
   return syncedLyrics
     .split('\n')
     .map((line) => line.trimEnd())
-    .map((line) => parseLrcLine(line, targetLanguage))
+    .map((line) => parseLrcLine(line))
     .filter((line): line is LyricLine => line !== null);
 }
 
-function parseLrcLine(line: string, targetLanguage?: string): LyricLine | null {
+function parseLrcLine(line: string): LyricLine | null {
   const match = line.match(/^\[(\d{1,3}):(\d{2})(?:\.(\d{1,3}))?\]\s?(.*)$/);
 
   if (!match) {
@@ -96,64 +87,11 @@ function parseLrcLine(line: string, targetLanguage?: string): LyricLine | null {
   const seconds = Number(match[2]);
   const milliseconds = Number((match[3] ?? '').padEnd(3, '0'));
   const text = match[4] ?? '';
-  const pair = splitLyricPair(text, targetLanguage);
 
   return {
     timeMs: (minutes * 60 + seconds) * 1000 + milliseconds,
-    original: pair.original,
-    translated: pair.translated,
-    translatedLanguage: pair.translatedLanguage,
+    original: text.trim(),
   };
-}
-
-function splitLyricPair(text: string, targetLanguage?: string): {
-  original: string;
-  translated?: string;
-  translatedLanguage?: string;
-} {
-  const trimmed = text.trim();
-
-  for (const separator of translationSeparators) {
-    const parts = trimmed.split(separator);
-
-    // LRCLIB has no dedicated translation field, so we only split when the
-    // contributor already embedded a clean bilingual pair into one timed line.
-    if (parts.length === 2 && parts[0]?.trim() && parts[1]?.trim()) {
-      const first = parts[0].trim();
-      const second = parts[1].trim();
-      const firstLanguage = detectLanguage(first);
-      const secondLanguage = detectLanguage(second);
-
-      if (
-        targetLanguage &&
-        languageMatches(firstLanguage, targetLanguage) &&
-        !languageMatches(secondLanguage, targetLanguage)
-      ) {
-        return {
-          original: second,
-          translated: first,
-          translatedLanguage: firstLanguage,
-        };
-      }
-
-      return {
-        original: first,
-        translated: second,
-        translatedLanguage: secondLanguage,
-      };
-    }
-  }
-
-  return {
-    original: trimmed,
-  };
-}
-
-function languageMatches(
-  detectedLanguage: string | undefined,
-  targetLanguage: string,
-): boolean {
-  return detectedLanguage?.split('-')[0] === targetLanguage.split('-')[0];
 }
 
 function detectLanguage(text: string): string | undefined {

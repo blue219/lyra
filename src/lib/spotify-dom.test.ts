@@ -2,7 +2,11 @@
 
 import { describe, expect, test } from 'vitest';
 
-import { readCurrentTrackIdentity, readPlaybackPositionMs } from './spotify-dom';
+import {
+  readCurrentTrackIdentity,
+  readPlaybackPositionMs,
+  readSpotifyLyricsSnapshot,
+} from './spotify-dom';
 
 describe('readCurrentTrackIdentity', () => {
   test('prefers the now playing bar song over the sidebar playlist heading', () => {
@@ -81,5 +85,34 @@ describe('readPlaybackPositionMs', () => {
       album: undefined,
       durationSeconds: undefined,
     });
+  });
+});
+
+describe('readSpotifyLyricsSnapshot', () => {
+  test('reads visible Spotify lyric lines and the active line index', () => {
+    document.body.innerHTML = `
+      <section aria-label="Lyrics">
+        <div data-testid="lyrics-line">Hello</div>
+        <div data-testid="lyrics-line" aria-current="true">World</div>
+      </section>
+    `;
+
+    expect(readSpotifyLyricsSnapshot(document)).toEqual({
+      activeLineIndex: 1,
+      lines: [
+        { timeMs: 0, original: 'Hello' },
+        { timeMs: 1, original: 'World' },
+      ],
+    });
+  });
+
+  test('returns null when no Spotify lyric lines are visible', () => {
+    document.body.innerHTML = `
+      <section aria-label="Lyrics">
+        <div data-testid="lyrics-line" style="display: none">Hidden</div>
+      </section>
+    `;
+
+    expect(readSpotifyLyricsSnapshot(document)).toBeNull();
   });
 });

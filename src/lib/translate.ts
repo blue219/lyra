@@ -1,54 +1,88 @@
-import type { LyricLine } from './types';
+import type { LyricLine, LyricsResult } from './types';
 
-const TRANSLATE_API = 'https://translate.googleapis.com/translate_a/single';
+const defaultTranslateApiBaseUrl = 'http://154.44.10.127:5000';
 const lineSeparator = '␞';
 
-/** Translates the original line text for every line in one API call by joining
- *  with a separator that Google Translate preserves more reliably than newlines.
- *  Falls back silently when translation fails so the overlay stays usable with
- *  original lyrics only. */
+export async function translateLyricsResult(
+  result: LyricsResult,
+  targetLanguage: string | undefined,
+): Promise<LyricsResult> {
+  if (result.status === 'unavailable' || result.lines.length === 0 || !targetLanguage) {
+    return result;
+  }
+
+  const translatedLines = await translateLyricLines(
+    result.lines,
+    result.sourceLanguage,
+    targetLanguage,
+  );
+  const hasAnyTranslation = translatedLines.some((line) => Boolean(line.translated));
+
+  return {
+    ...result,
+    status: hasAnyTranslation ? 'bilingual' : 'monolingual',
+    lines: translatedLines,
+  };
+}
+
+/** Translates lyric lines in one LibreTranslate request. Failures intentionally
+ *  return the original lines so the overlay stays readable without translation.
+ */
 export async function translateLyricLines(
   lines: LyricLine[],
   sourceLanguage: string | undefined,
   targetLanguage: string,
 ): Promise<LyricLine[]> {
-  if (lines.length === 0) return lines;
+  if (lines.length === 0) {
+    return lines;
+  }
 
-  const sourceCode = sourceLanguage?.split('-')[0] ?? 'auto';
-  const targetCode = targetLanguage.split('-')[0];
+  const targetCode = toLibreTranslateLanguage(targetLanguage);
+  const sourceCode = toLibreTranslateLanguage(sourceLanguage);
 
-  // If source and target share the same root language tag there is nothing to
-  // translate (e.g. zh-CN → zh-TW is not handled by the free endpoint).
-  if (sourceCode === targetCode) return lines;
+  if (!targetCode || !sourceCode || sourceCode === targetCode) {
+    return lines;
+  }
+
+  const apiKey = getLibreTranslateApiKey();
+
+  if (!apiKey) {
+    console.warn('[Lyra] LibreTranslate API key is missing');
+    return lines;
+  }
 
   try {
-    const originalText = lines.map((line) => line.original).join(lineSeparator);
-
-    const params = new URLSearchParams({
-      client: 'gtx',
-      sl: sourceCode,
-      tl: targetCode,
-      dt: 't',
-      q: originalText,
+    const response = await fetch(`${getLibreTranslateBaseUrl()}/translate`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        q: lines.map((line) => line.original).join(lineSeparator),
+        source: sourceCode,
+        target: targetCode,
+        format: 'text',
+        api_key: apiKey,
+      }),
     });
 
-    const response = await fetch(`${TRANSLATE_API}?${params.toString()}`);
-
     if (!response.ok) {
-      throw new Error(`Translation API returned ${response.status}`);
+      throw new Error(`LibreTranslate request failed: ${response.status}`);
     }
 
     const data: unknown = await response.json();
 
-    if (!Array.isArray(data) || !Array.isArray(data[0])) {
-      throw new Error('Unexpected translation response format');
+    if (
+      !data ||
+      typeof data !== 'object' ||
+      typeof (data as { translatedText?: unknown }).translatedText !== 'string'
+    ) {
+      throw new Error('Unexpected LibreTranslate response format');
     }
 
-    const translatedText = (data[0] as Array<Array<unknown>>)
-      .map((segment) => (typeof segment[0] === 'string' ? segment[0] : ''))
-      .join('');
-
-    const translatedLines = translatedText.split(lineSeparator);
+    const translatedLines = (data as { translatedText: string }).translatedText.split(
+      lineSeparator,
+    );
 
     if (translatedLines.length !== lines.length) {
       console.warn(
@@ -66,4 +100,34 @@ export async function translateLyricLines(
     console.warn('[Lyra] Translation failed, showing original lyrics:', error);
     return lines;
   }
+}
+
+function toLibreTranslateLanguage(language: string | undefined): string | null {
+  if (!language) {
+    return null;
+  }
+
+  if (language === 'en-US' || language === 'en') {
+    return 'en';
+  }
+
+  if (language === 'zh-CN' || language === 'zh-Hans') {
+    return 'zh-Hans';
+  }
+
+  return null;
+}
+
+function getLibreTranslateBaseUrl(): string {
+  return (
+    (import.meta.env.VITE_LIBRETRANSLATE_BASE_URL as string | undefined)?.replace(
+      /\/+$/,
+      '',
+    ) || defaultTranslateApiBaseUrl
+  );
+}
+
+function getLibreTranslateApiKey(): string | undefined {
+  const value = import.meta.env.VITE_LIBRETRANSLATE_API_KEY as string | undefined;
+  return value?.trim() || undefined;
 }

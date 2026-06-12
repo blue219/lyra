@@ -8,7 +8,7 @@ import {
 import type { LrclibLyricsResponse } from './lyrics';
 
 describe('toLyricsResult', () => {
-  test('maps synced LRCLIB lyrics into bilingual lines when a line includes a translation separator', () => {
+  test('maps synced LRCLIB lyrics into original lyric lines only', () => {
     const payload: LrclibLyricsResponse = {
       id: 1,
       trackName: 'Track',
@@ -21,26 +21,23 @@ describe('toLyricsResult', () => {
     };
 
     expect(toLyricsResult(payload)).toEqual({
-      status: 'bilingual',
+      status: 'monolingual',
+      source: 'lrclib',
+      sourceLanguage: 'zh-CN',
       lines: [
         {
           timeMs: 1_000,
-          original: 'Hello',
-          translated: '你好',
-          translatedLanguage: 'zh-CN',
+          original: 'Hello / 你好',
         },
         {
           timeMs: 3_500,
-          original: 'World',
-          translated: '世界',
-          translatedLanguage: 'zh-CN',
+          original: 'World / 世界',
         },
       ],
-      sourceLanguage: 'en-US',
     });
   });
 
-  test('returns a monolingual result when synced lyrics have no detected translation pair', () => {
+  test('returns a monolingual result when synced lyrics have plain text lines', () => {
     const payload: LrclibLyricsResponse = {
       id: 1,
       trackName: 'Track',
@@ -54,6 +51,8 @@ describe('toLyricsResult', () => {
 
     expect(toLyricsResult(payload)).toEqual({
       status: 'monolingual',
+      source: 'lrclib',
+      sourceLanguage: 'en-US',
       lines: [
         {
           timeMs: 1_000,
@@ -64,7 +63,6 @@ describe('toLyricsResult', () => {
           original: 'World',
         },
       ],
-      sourceLanguage: 'en-US',
     });
   });
 
@@ -82,39 +80,14 @@ describe('toLyricsResult', () => {
 
     expect(toLyricsResult(payload)).toEqual({
       status: 'monolingual',
+      source: 'lrclib',
+      sourceLanguage: 'en-US',
       lines: [
         {
           timeMs: 1_234,
           original: 'Hello',
         },
       ],
-      sourceLanguage: 'en-US',
-    });
-  });
-
-  test('places the selected target language in the translated line when an embedded pair is reversed', () => {
-    const payload: LrclibLyricsResponse = {
-      id: 1,
-      trackName: 'Track',
-      artistName: 'Artist',
-      albumName: 'Album',
-      duration: 180,
-      instrumental: false,
-      plainLyrics: '歩きつかれて',
-      syncedLyrics: '[00:01.00] Tired from walking / 歩きつかれて',
-    };
-
-    expect(toLyricsResult(payload, 'en-US')).toEqual({
-      status: 'bilingual',
-      lines: [
-        {
-          timeMs: 1_000,
-          original: '歩きつかれて',
-          translated: 'Tired from walking',
-          translatedLanguage: 'en-US',
-        },
-      ],
-      sourceLanguage: 'ja-JP',
     });
   });
 

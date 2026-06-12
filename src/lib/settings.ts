@@ -1,6 +1,7 @@
 import type { OverlaySettings } from './types';
 
 const fontSizes = new Set<OverlaySettings['fontSize']>(['sm', 'md', 'lg']);
+const targetLanguages = new Set(['en-US', 'zh-CN']);
 const positions = new Set<OverlaySettings['position']>([
   'left',
   'right',
@@ -18,10 +19,13 @@ export function sanitizeOverlaySettings(value: unknown): OverlaySettings {
     value && typeof value === 'object'
       ? (value as Partial<Record<keyof OverlaySettings, unknown>>)
       : {};
-  const targetLanguage =
-    typeof candidate.targetLanguage === 'string' && candidate.targetLanguage.trim()
+  const candidateTargetLanguage =
+    typeof candidate.targetLanguage === 'string'
       ? candidate.targetLanguage.trim()
-      : defaultOverlaySettings.targetLanguage;
+      : '';
+  const targetLanguage = targetLanguages.has(candidateTargetLanguage)
+    ? candidateTargetLanguage
+    : defaultOverlaySettings.targetLanguage;
   const fontSize = fontSizes.has(candidate.fontSize as OverlaySettings['fontSize'])
     ? (candidate.fontSize as OverlaySettings['fontSize'])
     : defaultOverlaySettings.fontSize;

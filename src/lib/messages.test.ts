@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, test, vi } from 'vitest';
 
-import { requestLyrics } from './messages';
+import { requestLyrics, requestTranslatedLyrics } from './messages';
 
 describe('requestLyrics', () => {
   afterEach(() => {
@@ -57,6 +57,44 @@ describe('requestLyrics', () => {
         artists: ['YUKI'],
       },
       targetLanguage: 'en-US',
+    });
+  });
+
+  test('includes Spotify lyric lines in translation requests', async () => {
+    const sendMessage = vi.fn(() =>
+      Promise.resolve({
+        status: 'bilingual',
+        source: 'spotify',
+        lines: [
+          {
+            timeMs: 0,
+            original: 'Hello',
+            translated: '你好',
+            translatedLanguage: 'zh-CN',
+          },
+        ],
+      }),
+    );
+
+    (globalThis as Record<string, unknown>).browser = {
+      runtime: {
+        sendMessage,
+      },
+    } as unknown as typeof browser;
+
+    await requestTranslatedLyrics(
+      [{ timeMs: 0, original: 'Hello' }],
+      'zh-CN',
+      'en-US',
+      'spotify',
+    );
+
+    expect(sendMessage).toHaveBeenCalledWith({
+      type: 'lyra:translateLyrics',
+      lines: [{ timeMs: 0, original: 'Hello' }],
+      targetLanguage: 'zh-CN',
+      sourceLanguage: 'en-US',
+      source: 'spotify',
     });
   });
 });

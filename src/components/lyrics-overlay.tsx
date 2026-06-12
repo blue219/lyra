@@ -15,9 +15,6 @@ interface LyricsOverlayProps {
 const languageOptions = [
   { value: 'en-US', label: 'English' },
   { value: 'zh-CN', label: 'Chinese (Simplified)' },
-  { value: 'zh-TW', label: 'Chinese (Traditional)' },
-  { value: 'ja-JP', label: 'Japanese' },
-  { value: 'es-ES', label: 'Spanish' },
 ];
 
 const fontSizeClassNames: Record<OverlaySettings['fontSize'], string> = {
@@ -102,7 +99,7 @@ export function LyricsOverlay({
                 ))}
               </select>
               <p className="mt-2 text-xs text-[var(--lyra-color-muted)]">
-                Used when LRCLIB lines already contain an embedded translation.
+                Spotify lyrics are translated through the configured Lyra translation service.
               </p>
             </div>
 
@@ -155,7 +152,7 @@ export function LyricsOverlay({
         ) : null}
 
         <section className="mt-4 rounded-[20px] bg-[rgba(18,18,18,0.84)] p-4 shadow-[var(--lyra-shadow-elevated)]">
-          <StatusBanner lyrics={lyrics} phase={phase} settings={settings} />
+          <StatusBanner lyrics={lyrics} phase={phase} />
 
           <div className="lyra-scrollbar mt-4 max-h-[50vh] space-y-3 overflow-y-auto pr-1">
             {phase === 'waiting-track' ? (
@@ -167,21 +164,21 @@ export function LyricsOverlay({
 
             {phase === 'loading' ? (
               <EmptyState
-                body="Fetching synced lyrics from LRCLIB for the current track."
+                body="Reading Spotify lyrics or fetching fallback lyrics for the current track."
                 title="Loading lyrics"
               />
             ) : null}
 
             {phase === 'error' ? (
               <EmptyState
-                body="The LRCLIB request failed. Lyra will retry automatically when the track changes."
+                body="The lyrics or translation request failed. Lyra will retry automatically when the track changes."
                 title="Lyrics request failed"
               />
             ) : null}
 
             {phase === 'unavailable' ? (
               <EmptyState
-                body="No synced LRCLIB lyrics were found for this track."
+                body="No Spotify lyrics are visible, and no synced fallback lyrics were found."
                 title="Lyrics unavailable"
               />
             ) : null}
@@ -249,14 +246,13 @@ function EmptyState({ title, body }: EmptyStateProps) {
 interface StatusBannerProps {
   phase: LyricsOverlayProps['phase'];
   lyrics: LyricsResult;
-  settings: OverlaySettings;
 }
 
-function StatusBanner({ phase, lyrics, settings }: StatusBannerProps) {
+function StatusBanner({ phase, lyrics }: StatusBannerProps) {
   if (phase === 'ready' && lyrics.status === 'bilingual') {
     return (
       <div className="rounded-full bg-[rgba(30,215,96,0.14)] px-4 py-2 text-[10px] font-bold uppercase tracking-[1.8px] text-[var(--lyra-color-accent)]">
-        Bilingual lines detected
+        {lyrics.source === 'lrclib' ? 'Fallback lyrics translated' : 'Spotify lyrics translated'}
       </div>
     );
   }
@@ -264,10 +260,7 @@ function StatusBanner({ phase, lyrics, settings }: StatusBannerProps) {
   if (phase === 'ready' && lyrics.status === 'monolingual') {
     const languageDisplayNames: Record<string, string> = {
       'en-US': 'English',
-      'ja-JP': 'Japanese',
       'zh-CN': 'Chinese (Simplified)',
-      'zh-TW': 'Chinese (Traditional)',
-      'es-ES': 'Spanish',
     };
     const sourceLabel = lyrics.sourceLanguage
       ? (languageDisplayNames[lyrics.sourceLanguage] ?? lyrics.sourceLanguage) + ' · '
@@ -275,7 +268,7 @@ function StatusBanner({ phase, lyrics, settings }: StatusBannerProps) {
 
     return (
       <div className="rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-[10px] font-bold uppercase tracking-[1.8px] text-[var(--lyra-color-muted)]">
-        {sourceLabel}Translation unavailable for {settings.targetLanguage}
+        {sourceLabel}Showing original lyrics
       </div>
     );
   }

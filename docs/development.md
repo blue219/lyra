@@ -2,39 +2,50 @@
 
 ## MVP behavior
 
-Lyra injects a lyrics overlay into `https://open.spotify.com/*`, detects the current track from the page, fetches synced lyrics from LRCLIB, and highlights the active line during playback. If a translation is unavailable for the selected target language, the overlay keeps showing the original lyrics and clearly indicates the degraded state.
+Lyra injects a lyrics overlay into `https://open.spotify.com/*`, detects the current track from the page, reads visible Spotify lyrics when available, and sends those lines to the configured LibreTranslate backend. If Spotify lyrics are not visible, Lyra falls back to LRCLIB only to fetch synced original lyrics, then translates those fallback lines through the same backend.
+
+The current translation service supports English and Simplified Chinese. If translation is unavailable, missing an API key, or fails, the overlay keeps showing original lyrics.
 
 ## Manual loading
 
 1. Run `npm install`.
-2. Run `npm run dev`.
-3. Open your existing Chrome window and visit `chrome://extensions`.
-4. Enable developer mode.
-5. Load the unpacked extension from `.output/chrome-mv3`.
-6. Open Spotify Web Player and verify the Lyra overlay appears after the page finishes loading.
+2. Copy `.env.example` to `.env` and set `VITE_LIBRETRANSLATE_API_KEY`.
+3. Run `npm run dev`.
+4. Open your existing Chrome window and visit `chrome://extensions`.
+5. Enable developer mode.
+6. Load the unpacked extension from `.output/chrome-mv3`.
+7. Open Spotify Web Player and verify the Lyra overlay appears after the page finishes loading.
 
-`npm run dev` no longer launches a separate Chrome window automatically. Lyra now uses WXT's manual runner so development happens inside your own Chrome session.
+`npm run dev` uses WXT's manual runner so development happens inside your own Chrome session.
 
 ## Manual smoke checklist
 
 - Overlay renders only on Spotify Web Player.
-- Track changes trigger a new LRCLIB request.
-- Active line highlighting advances while playback time changes.
-- Monolingual and unavailable lyric states remain readable.
-- The target language filter can show embedded English translations when available.
-- Font size, language, and overlay position settings persist across refresh.
+- Visible Spotify lyrics are translated through LibreTranslate.
+- Spotify's active lyric line is reflected in the overlay when the active DOM line can be detected.
+- When Spotify lyrics are not visible, Lyra fetches original synced lyrics from LRCLIB as a fallback.
+- Monolingual, translated, and unavailable lyric states remain readable.
+- English and Simplified Chinese target language settings persist across refresh.
+- Font size and overlay position settings persist across refresh.
 
-## LRCLIB lookup behavior
+## Spotify lyrics behavior
 
-Use LRCLIB's signature lookup only when Spotify exposes the full track signature: title, artist, album, and duration in seconds. If album or duration is unavailable, fall back to LRCLIB search instead of sending an incomplete `/api/get` request. LRCLIB does not expose a dedicated translation or target-language parameter.
+Lyra does not click Spotify controls or open the lyrics panel automatically. It only reads lyric lines already present in the page DOM. If no visible lyric lines can be read, the fallback LRCLIB flow is used.
 
-Embedded bilingual lines are parsed by detecting the language on each side of a supported separator. When the selected target language appears on the left side of a pair, Lyra treats that side as the translated line and keeps the other side as the primary lyric.
+Spotify lyric lines do not expose LRCLIB-style timestamps in the extension. For Spotify-sourced lyrics, Lyra highlights the line Spotify marks as active. If no active DOM marker can be detected, Lyra displays translated lines without an active highlight.
 
-## Machine translation fallback
+## LRCLIB fallback behavior
 
-When the best LRCLIB match is monolingual and the selected target language differs from the detected source language, Lyra automatically requests a free machine translation via `translate.googleapis.com`.
+LRCLIB is now a fallback source for original synced lyrics only. Lyra does not use LRCLIB embedded bilingual text as translation data and does not prefer LRCLIB results based on a requested translation language.
 
-- Lines are batched into a single request for efficiency.
-- Batched lines use a stable internal separator because Google Translate can collapse ordinary newline separators.
-- If the translated line count matches the original, each line receives a `translated` field and the result is promoted to `bilingual`.
-- On any failure (network error, mismatched line count, rate limiting) the overlay continues to show the original lyrics without translation.
+Fallback lookup uses LRCLIB search with track and artist first, then track-only search if no artist-constrained match is found. The selected synced lyrics are parsed as original text and translated through LibreTranslate.
+
+## LibreTranslate behavior
+
+Lyra sends batched lyric lines to the configured LibreTranslate backend with a stable internal separator so returned lines can be mapped back to lyric rows.
+
+- Base URL defaults to `http://154.44.10.127:5000`.
+- `VITE_LIBRETRANSLATE_BASE_URL` can override the base URL.
+- `VITE_LIBRETRANSLATE_API_KEY` is required for translation requests.
+- The request body includes `q`, `source`, `target`, `format`, and `api_key`.
+- On network errors, non-2xx responses, response format errors, or line-count mismatches, Lyra keeps showing original lyrics.

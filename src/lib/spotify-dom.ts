@@ -1,4 +1,4 @@
-import type { TrackIdentity } from './types';
+import type { LyricLine, TrackIdentity } from './types';
 
 const trackLinkSelectors = [
   '[aria-label^="Now playing:"] a[href^="/album/"]',
@@ -22,6 +22,18 @@ const trackScopeSelectors = [
   '[aria-label*="Now playing"]',
   '[data-testid="entity-details"]',
 ];
+
+const spotifyLyricsLineSelectors = [
+  '[data-testid="lyrics-line"]',
+  '[data-lyric-index]',
+  '[aria-label*="Lyrics"] [role="button"]',
+  '[aria-label*="lyrics"] [role="button"]',
+];
+
+export interface SpotifyLyricsSnapshot {
+  lines: LyricLine[];
+  activeLineIndex: number;
+}
 
 export function readCurrentTrackIdentity(
   rootDocument: Document = document,
@@ -74,6 +86,34 @@ export function readCurrentTrackIdentity(
     artists: uniqueValues(artists),
     album,
     durationSeconds: readPlaybackDurationSeconds(rootDocument),
+  };
+}
+
+export function readSpotifyLyricsSnapshot(
+  rootDocument: Document = document,
+): SpotifyLyricsSnapshot | null {
+  const lyricElements = uniqueElements(
+    spotifyLyricsLineSelectors.flatMap((selector) =>
+      Array.from(rootDocument.querySelectorAll<HTMLElement>(selector)),
+    ),
+  ).filter(isVisibleElement);
+  const textLines = lyricElements
+    .map((element, index) => ({
+      element,
+      line: {
+        timeMs: index,
+        original: normalizeLyricText(element.textContent ?? ''),
+      },
+    }))
+    .filter((entry) => entry.line.original.length > 0);
+
+  if (textLines.length === 0) {
+    return null;
+  }
+
+  return {
+    activeLineIndex: textLines.findIndex((entry) => isActiveLyricElement(entry.element)),
+    lines: textLines.map((entry) => entry.line),
   };
 }
 
@@ -264,6 +304,25 @@ function findAlbumText(
   return candidates.find(Boolean) || undefined;
 }
 
+function isActiveLyricElement(element: HTMLElement): boolean {
+  const ariaCurrent = element.getAttribute('aria-current');
+  const ariaSelected = element.getAttribute('aria-selected');
+  const dataActive = element.getAttribute('data-active');
+  const className = typeof element.className === 'string' ? element.className : '';
+
+  return (
+    ariaCurrent === 'true' ||
+    ariaCurrent === 'step' ||
+    ariaSelected === 'true' ||
+    dataActive === 'true' ||
+    /\b(active|current|selected)\b/i.test(className)
+  );
+}
+
+function normalizeLyricText(value: string): string {
+  return value.replace(/\s+/g, ' ').trim();
+}
+
 function parseTimestampToMs(value: string): number | null {
   const match = value.trim().match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?$/);
 
@@ -285,4 +344,8 @@ function parseTimestampToMs(value: string): number | null {
 
 function uniqueValues(values: string[]): string[] {
   return Array.from(new Set(values));
+}
+
+function uniqueElements<T extends Element>(elements: T[]): T[] {
+  return Array.from(new Set(elements));
 }

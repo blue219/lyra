@@ -48,3 +48,4 @@ Do not upgrade major versions without a clear reason.
 - Keep changes scoped to the correct package
 - Follow RESTful conventions for API design
 - A design guideline document (for example `DESIGN.md`) does not replace Tailwind. In frontend work, keep the design document as requirements and use Tailwind as the implementation layer
+- Check 'C:\Users\sky\.codex\AGENTS.md' first before thinking if you haven't checked yet

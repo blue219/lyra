@@ -16,6 +16,7 @@ export interface LyricsResult {
   status: 'bilingual' | 'monolingual' | 'unavailable';
   lines: LyricLine[];
   sourceLanguage?: string;
+  source?: 'spotify' | 'lrclib';
 }
 
 export interface OverlaySettings {

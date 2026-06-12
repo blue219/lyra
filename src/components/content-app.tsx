@@ -1,13 +1,17 @@
 import { useEffect, useState } from 'react';
 
 import { LyricsOverlay } from './lyrics-overlay';
-import { findActiveLyricIndex } from '../lib/lyrics';
-import { requestLyrics } from '../lib/messages';
+import { detectSourceLanguage, findActiveLyricIndex } from '../lib/lyrics';
+import { requestLyrics, requestTranslatedLyrics } from '../lib/messages';
 import { getExtensionApi } from '../lib/extension-api';
 import { defaultOverlaySettings, sanitizeOverlaySettings } from '../lib/settings';
-import { readCurrentTrackIdentity, readPlaybackPositionMs } from '../lib/spotify-dom';
+import {
+  readCurrentTrackIdentity,
+  readPlaybackPositionMs,
+  readSpotifyLyricsSnapshot,
+} from '../lib/spotify-dom';
 import { createTrackCacheKey, normalizeTrackIdentity } from '../lib/track';
-import type { LyricsResult, OverlaySettings, TrackIdentity } from '../lib/types';
+import type { LyricLine, LyricsResult, OverlaySettings, TrackIdentity } from '../lib/types';
 
 type OverlayPhase = 'waiting-track' | 'loading' | 'ready' | 'unavailable' | 'error';
 
@@ -24,10 +28,16 @@ export function ContentApp() {
   const [lyrics, setLyrics] = useState<LyricsResult>(emptyLyricsResult);
   const [phase, setPhase] = useState<OverlayPhase>('waiting-track');
   const [playbackPositionMs, setPlaybackPositionMs] = useState(0);
+  const [spotifyLyricsLines, setSpotifyLyricsLines] = useState<LyricLine[]>([]);
+  const [spotifyActiveLineIndex, setSpotifyActiveLineIndex] = useState(-1);
   const [settings, setSettings] = useState<OverlaySettings>(defaultOverlaySettings);
   const [settingsOpen, setSettingsOpen] = useState(false);
 
-  const activeLineIndex = findActiveLyricIndex(lyrics.lines, playbackPositionMs);
+  const activeLineIndex =
+    lyrics.source === 'spotify'
+      ? spotifyActiveLineIndex
+      : findActiveLyricIndex(lyrics.lines, playbackPositionMs);
+  const spotifyLyricsKey = createLyricsKey(spotifyLyricsLines);
 
   useEffect(() => {
     let isCancelled = false;
@@ -69,10 +79,19 @@ export function ContentApp() {
     const syncPlaybackState = () => {
       const nextTrack = readCurrentTrackIdentity();
       const nextPlaybackPositionMs = readPlaybackPositionMs();
+      const nextSpotifyLyrics = readSpotifyLyricsSnapshot();
 
       if (nextPlaybackPositionMs !== null) {
         setPlaybackPositionMs(nextPlaybackPositionMs);
       }
+
+      setSpotifyActiveLineIndex(nextSpotifyLyrics?.activeLineIndex ?? -1);
+      setSpotifyLyricsLines((currentLines) => {
+        const nextLines = nextSpotifyLyrics?.lines ?? [];
+        return createLyricsKey(currentLines) === createLyricsKey(nextLines)
+          ? currentLines
+          : nextLines;
+      });
 
       setTrack((currentTrack) => {
         if (!nextTrack) {
@@ -111,12 +130,20 @@ export function ContentApp() {
 
     let isCancelled = false;
 
-    // Lyrics fetches are keyed by track only; local playback time keeps the
-    // active-line highlight in sync without re-requesting remote data.
     setPhase('loading');
     setLyrics(emptyLyricsResult);
 
-    requestLyrics(track, settings.targetLanguage)
+    const lyricsRequest =
+      spotifyLyricsLines.length > 0
+        ? requestTranslatedLyrics(
+            spotifyLyricsLines,
+            settings.targetLanguage,
+            detectSourceLanguage(spotifyLyricsLines),
+            'spotify',
+          )
+        : requestLyrics(track, settings.targetLanguage);
+
+    lyricsRequest
       .then((nextLyrics) => {
         if (isCancelled) {
           return;
@@ -137,7 +164,7 @@ export function ContentApp() {
     return () => {
       isCancelled = true;
     };
-  }, [settings.targetLanguage, track]);
+  }, [settings.targetLanguage, spotifyLyricsKey, track]);
 
   function updateSettings(patch: Partial<OverlaySettings>) {
     setSettings((currentSettings) => {
@@ -168,4 +195,8 @@ export function ContentApp() {
       onToggleSettings={() => setSettingsOpen((value) => !value)}
     />
   );
+}
+
+function createLyricsKey(lines: LyricLine[]): string {
+  return lines.map((line) => line.original).join('\n');
 }

@@ -26,4 +26,36 @@ describe('sanitizeOverlaySettings', () => {
       position: 'bottom',
     });
   });
+
+  test('falls back from unsupported legacy language values', () => {
+    expect(
+      sanitizeOverlaySettings({
+        targetLanguage: 'ja-JP',
+        fontSize: 'md',
+        position: 'right',
+      }),
+    ).toEqual(defaultOverlaySettings);
+
+    expect(
+      sanitizeOverlaySettings({
+        targetLanguage: 'es-ES',
+        fontSize: 'md',
+        position: 'right',
+      }),
+    ).toEqual(defaultOverlaySettings);
+  });
+
+  test('preserves simplified Chinese as a supported target language', () => {
+    expect(
+      sanitizeOverlaySettings({
+        targetLanguage: 'zh-CN',
+        fontSize: 'sm',
+        position: 'left',
+      }),
+    ).toEqual({
+      targetLanguage: 'zh-CN',
+      fontSize: 'sm',
+      position: 'left',
+    });
+  });
 });

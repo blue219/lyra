@@ -2,7 +2,9 @@
 
 Lyra is a Chromium browser extension for Spotify Web Player that shows synced bilingual lyrics inside the page.
 
-Current translation display is based on LRCLIB lyric lines that already embed a second language. Lyra uses lightweight text heuristics to identify common embedded English, Chinese, Japanese, and Spanish translations for the in-overlay language filter.
+Lyra first reads visible Spotify lyrics from the page and translates them through the configured LibreTranslate backend. If Spotify lyrics are not visible, Lyra falls back to LRCLIB only to retrieve synced original lyrics, then sends those lines through the same translation service.
+
+The current development translation backend supports English and Simplified Chinese.
 
 ## Stack
 
@@ -20,17 +22,23 @@ Current translation display is based on LRCLIB lyric lines that already embed a 
 npm install
 ```
 
-2. Start the extension dev server on port `5173`:
+2. Create a local `.env` file from `.env.example` and set your LibreTranslate key:
+
+```bash
+VITE_LIBRETRANSLATE_API_KEY=<your-api-key>
+```
+
+3. Start the extension dev server on port `5173`:
 
 ```bash
 npm run dev
 ```
 
-3. Open your existing Chrome window and visit `chrome://extensions`.
+4. Open your existing Chrome window and visit `chrome://extensions`.
 
-4. Enable developer mode.
+5. Enable developer mode.
 
-5. Load the generated Chromium extension from the `.output/chrome-mv3` directory.
+6. Load the generated Chromium extension from the `.output/chrome-mv3` directory.
 
 ## Validation
 

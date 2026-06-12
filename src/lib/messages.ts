@@ -1,11 +1,20 @@
-import type { LyricsResult, TrackIdentity } from './types';
 import { getExtensionApi, isExtensionContextInvalidatedError } from './extension-api';
 import { fetchLyricsFromLrclib } from './lrclib';
+import { translateLyricsResult } from './translate';
+import type { LyricLine, LyricsResult, TrackIdentity } from './types';
 
 export interface FetchLyricsMessage {
   type: 'lyra:fetchLyrics';
   track: TrackIdentity;
   targetLanguage?: string;
+}
+
+export interface TranslateLyricsMessage {
+  type: 'lyra:translateLyrics';
+  lines: LyricLine[];
+  targetLanguage?: string;
+  sourceLanguage?: string;
+  source?: LyricsResult['source'];
 }
 
 const unavailableLyricsResult: LyricsResult = {
@@ -23,39 +32,116 @@ export function isFetchLyricsMessage(value: unknown): value is FetchLyricsMessag
   return message.type === 'lyra:fetchLyrics' && Boolean(message.track);
 }
 
+export function isTranslateLyricsMessage(
+  value: unknown,
+): value is TranslateLyricsMessage {
+  if (!value || typeof value !== 'object') {
+    return false;
+  }
+
+  const message = value as Partial<TranslateLyricsMessage>;
+
+  return message.type === 'lyra:translateLyrics' && Array.isArray(message.lines);
+}
+
 export function requestLyrics(
   track: TrackIdentity,
   targetLanguage?: string,
 ): Promise<LyricsResult> {
   const extensionApi = getExtensionApi();
+  const message: FetchLyricsMessage = {
+    type: 'lyra:fetchLyrics',
+    track,
+    targetLanguage,
+  };
 
   if (!extensionApi?.runtime) {
-    return Promise.resolve(unavailableLyricsResult);
+    return fetchFallbackLyrics(track, targetLanguage);
   }
 
   try {
-    return Promise.resolve(
-      extensionApi.runtime.sendMessage({
-        type: 'lyra:fetchLyrics',
-        track,
-        targetLanguage,
-      }),
-    ).catch((error: unknown) => {
-      if (isExtensionContextInvalidatedError(error)) {
-        return unavailableLyricsResult;
-      }
-
-      // Background service worker may be terminated; fall back to direct fetch.
-      console.warn('[Lyra] background unreachable, fetching directly', error);
-      return fetchLyricsFromLrclib(track, targetLanguage);
-    });
+    return Promise.resolve(extensionApi.runtime.sendMessage(message)).catch(
+      (error: unknown) => handleMessageError(error, () =>
+        fetchFallbackLyrics(track, targetLanguage),
+      ),
+    );
   } catch (error) {
-    if (isExtensionContextInvalidatedError(error)) {
-      return Promise.resolve(unavailableLyricsResult);
-    }
-
-    // sendMessage threw synchronously; fall back to direct fetch.
-    console.warn('[Lyra] background unreachable, fetching directly', error);
-    return fetchLyricsFromLrclib(track, targetLanguage);
+    return handleMessageError(error, () => fetchFallbackLyrics(track, targetLanguage));
   }
+}
+
+export function requestTranslatedLyrics(
+  lines: LyricLine[],
+  targetLanguage?: string,
+  sourceLanguage?: string,
+  source: LyricsResult['source'] = 'spotify',
+): Promise<LyricsResult> {
+  const extensionApi = getExtensionApi();
+  const message: TranslateLyricsMessage = {
+    type: 'lyra:translateLyrics',
+    lines,
+    targetLanguage,
+    sourceLanguage,
+    source,
+  };
+
+  if (!extensionApi?.runtime) {
+    return translateLyricsResult(
+      {
+        status: 'monolingual',
+        lines,
+        sourceLanguage,
+        source,
+      },
+      targetLanguage,
+    );
+  }
+
+  try {
+    return Promise.resolve(extensionApi.runtime.sendMessage(message)).catch(
+      (error: unknown) =>
+        handleMessageError(error, () =>
+          translateLyricsResult(
+            {
+              status: 'monolingual',
+              lines,
+              sourceLanguage,
+              source,
+            },
+            targetLanguage,
+          ),
+        ),
+    );
+  } catch (error) {
+    return handleMessageError(error, () =>
+      translateLyricsResult(
+        {
+          status: 'monolingual',
+          lines,
+          sourceLanguage,
+          source,
+        },
+        targetLanguage,
+      ),
+    );
+  }
+}
+
+function handleMessageError(
+  error: unknown,
+  fallback: () => Promise<LyricsResult>,
+): Promise<LyricsResult> {
+  if (isExtensionContextInvalidatedError(error)) {
+    return Promise.resolve(unavailableLyricsResult);
+  }
+
+  console.warn('[Lyra] background unreachable, using direct lyrics flow', error);
+  return fallback();
+}
+
+async function fetchFallbackLyrics(
+  track: TrackIdentity,
+  targetLanguage?: string,
+): Promise<LyricsResult> {
+  return translateLyricsResult(await fetchLyricsFromLrclib(track), targetLanguage);
 }
