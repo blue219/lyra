@@ -23,7 +23,7 @@ describe('translateLyricLines', () => {
       expect(init?.method).toBe('POST');
       expect(init?.headers).toEqual({ 'Content-Type': 'application/json' });
       expect(JSON.parse(String(init?.body))).toEqual({
-        q: 'Hello␞World',
+        q: 'Hello\nWorld',
         source: 'en',
         target: 'zh-Hans',
         format: 'text',
@@ -31,7 +31,7 @@ describe('translateLyricLines', () => {
       });
 
       return createJsonResponse({
-        translatedText: '你好␞世界',
+        translatedText: '你好\n世界',
       });
     });
 

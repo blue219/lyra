@@ -53,7 +53,7 @@ Fallback lookup uses LRCLIB search with track and artist first, then track-only 
 
 ## LibreTranslate behavior
 
-Lyra sends batched lyric lines to the configured LibreTranslate backend with a stable internal separator so returned lines can be mapped back to lyric rows.
+Lyra sends batched lyric lines to the configured LibreTranslate backend separated by newlines so returned lines can be mapped back to lyric rows. The development backend preserves newlines, while some punctuation-like separators can be removed during translation.
 
 - Base URL defaults to `http://154.44.10.127:5000`.
 - `VITE_LIBRETRANSLATE_BASE_URL` can override the base URL.

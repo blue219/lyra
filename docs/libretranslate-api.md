@@ -83,7 +83,7 @@ console.log(data.translatedText);
 
 ## Lyra Integration
 
-Lyra batches lyric lines into a single `q` value using an internal separator, then splits `translatedText` back into line-level translations. If the split line count does not match the original line count, Lyra discards the translation response and shows original lyrics.
+Lyra batches lyric lines into a single `q` value separated by newlines, then splits `translatedText` back into line-level translations. If the split line count does not match the original line count, Lyra discards the translation response and shows original lyrics.
 
 The browser extension currently maps UI language values as follows:
 

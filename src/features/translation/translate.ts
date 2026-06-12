@@ -1,7 +1,7 @@
 import type { LyricLine, LyricsResult } from '../../shared/types';
 
 const defaultTranslateApiBaseUrl = 'http://154.44.10.127:5000';
-const lineSeparator = '␞';
+const lineSeparator = '\n';
 
 export async function translateLyricsResult(
   result: LyricsResult,
