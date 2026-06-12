@@ -3,6 +3,7 @@
 import { describe, expect, test } from 'vitest';
 
 import {
+  hasVisibleSpotifyLyrics,
   readCurrentTrackIdentity,
   readPlaybackPositionMs,
   readSpotifyLyricsSnapshot,
@@ -114,5 +115,53 @@ describe('readSpotifyLyricsSnapshot', () => {
     `;
 
     expect(readSpotifyLyricsSnapshot(document)).toBeNull();
+  });
+});
+
+describe('hasVisibleSpotifyLyrics', () => {
+  test('returns false when no Spotify lyric lines exist', () => {
+    document.body.innerHTML = '<main>No lyrics here</main>';
+
+    expect(hasVisibleSpotifyLyrics(document)).toBe(false);
+  });
+
+  test('returns false when Spotify lyric lines are hidden', () => {
+    document.body.innerHTML = `
+      <section aria-label="Lyrics">
+        <div data-testid="lyrics-line" style="display: none">Hidden</div>
+      </section>
+    `;
+
+    expect(hasVisibleSpotifyLyrics(document)).toBe(false);
+  });
+
+  test('returns false when Spotify lyric lines are empty', () => {
+    document.body.innerHTML = `
+      <section aria-label="Lyrics">
+        <div data-testid="lyrics-line">   </div>
+      </section>
+    `;
+
+    expect(hasVisibleSpotifyLyrics(document)).toBe(false);
+  });
+
+  test('returns false for lyrics controls without lyric line attributes', () => {
+    document.body.innerHTML = `
+      <section aria-label="Lyrics">
+        <button role="button">Open lyrics</button>
+      </section>
+    `;
+
+    expect(hasVisibleSpotifyLyrics(document)).toBe(false);
+  });
+
+  test('returns true when visible Spotify lyric text exists', () => {
+    document.body.innerHTML = `
+      <section aria-label="Lyrics">
+        <div data-testid="lyrics-line">Hello</div>
+      </section>
+    `;
+
+    expect(hasVisibleSpotifyLyrics(document)).toBe(true);
   });
 });

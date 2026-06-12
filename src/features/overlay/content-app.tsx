@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 
 import { LyricsOverlay } from './lyrics-overlay';
 import { findActiveLyricIndex } from '../lyrics/lyrics';
-import { requestLyrics, requestTranslatedLyrics } from '../lyrics/messages';
+import { requestTranslatedLyrics } from '../lyrics/messages';
 import { defaultOverlaySettings, sanitizeOverlaySettings } from '../settings/settings';
 import {
   readCurrentTrackIdentity,
@@ -122,7 +122,7 @@ export function ContentApp() {
   }, []);
 
   useEffect(() => {
-    if (!track) {
+    if (!shouldRequestVisibleSpotifyLyrics(spotifyLyricsLines)) {
       setLyrics(emptyLyricsResult);
       setPhase('waiting-track');
       return;
@@ -133,14 +133,11 @@ export function ContentApp() {
     setPhase('loading');
     setLyrics(emptyLyricsResult);
 
-    const lyricsRequest =
-      spotifyLyricsLines.length > 0
-        ? requestTranslatedLyrics(
-            spotifyLyricsLines,
-            settings.targetLanguage,
-            'spotify',
-          )
-        : requestLyrics(track, settings.targetLanguage);
+    const lyricsRequest = requestTranslatedLyrics(
+      spotifyLyricsLines,
+      settings.targetLanguage,
+      'spotify',
+    );
 
     lyricsRequest
       .then((nextLyrics) => {
@@ -163,7 +160,7 @@ export function ContentApp() {
     return () => {
       isCancelled = true;
     };
-  }, [settings.targetLanguage, spotifyLyricsKey, track]);
+  }, [settings.targetLanguage, spotifyLyricsKey]);
 
   function updateSettings(patch: Partial<OverlaySettings>) {
     setSettings((currentSettings) => {
@@ -182,6 +179,10 @@ export function ContentApp() {
     });
   }
 
+  if (!shouldRequestVisibleSpotifyLyrics(spotifyLyricsLines)) {
+    return null;
+  }
+
   return (
     <LyricsOverlay
       activeLineIndex={activeLineIndex}
@@ -194,6 +195,10 @@ export function ContentApp() {
       onToggleSettings={() => setSettingsOpen((value) => !value)}
     />
   );
+}
+
+export function shouldRequestVisibleSpotifyLyrics(lines: LyricLine[]): boolean {
+  return lines.length > 0;
 }
 
 function createLyricsKey(lines: LyricLine[]): string {

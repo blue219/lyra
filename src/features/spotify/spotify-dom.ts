@@ -26,13 +26,16 @@ const trackScopeSelectors = [
 const spotifyLyricsLineSelectors = [
   '[data-testid="lyrics-line"]',
   '[data-lyric-index]',
-  '[aria-label*="Lyrics"] [role="button"]',
-  '[aria-label*="lyrics"] [role="button"]',
 ];
 
 export interface SpotifyLyricsSnapshot {
   lines: LyricLine[];
   activeLineIndex: number;
+}
+
+interface SpotifyLyricEntry {
+  element: HTMLElement;
+  line: LyricLine;
 }
 
 export function readCurrentTrackIdentity(
@@ -92,20 +95,7 @@ export function readCurrentTrackIdentity(
 export function readSpotifyLyricsSnapshot(
   rootDocument: Document = document,
 ): SpotifyLyricsSnapshot | null {
-  const lyricElements = uniqueElements(
-    spotifyLyricsLineSelectors.flatMap((selector) =>
-      Array.from(rootDocument.querySelectorAll<HTMLElement>(selector)),
-    ),
-  ).filter(isVisibleElement);
-  const textLines = lyricElements
-    .map((element, index) => ({
-      element,
-      line: {
-        timeMs: index,
-        original: normalizeLyricText(element.textContent ?? ''),
-      },
-    }))
-    .filter((entry) => entry.line.original.length > 0);
+  const textLines = readVisibleSpotifyLyricEntries(rootDocument);
 
   if (textLines.length === 0) {
     return null;
@@ -115,6 +105,28 @@ export function readSpotifyLyricsSnapshot(
     activeLineIndex: textLines.findIndex((entry) => isActiveLyricElement(entry.element)),
     lines: textLines.map((entry) => entry.line),
   };
+}
+
+export function hasVisibleSpotifyLyrics(rootDocument: Document = document): boolean {
+  return readVisibleSpotifyLyricEntries(rootDocument).length > 0;
+}
+
+function readVisibleSpotifyLyricEntries(rootDocument: Document): SpotifyLyricEntry[] {
+  const lyricElements = uniqueElements(
+    spotifyLyricsLineSelectors.flatMap((selector) =>
+      Array.from(rootDocument.querySelectorAll<HTMLElement>(selector)),
+    ),
+  ).filter(isVisibleElement);
+
+  return lyricElements
+    .map((element, index) => ({
+      element,
+      line: {
+        timeMs: index,
+        original: normalizeLyricText(element.textContent ?? ''),
+      },
+    }))
+    .filter((entry) => entry.line.original.length > 0);
 }
 
 function readTrackIdentityFromNowPlayingRegion(
