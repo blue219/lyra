@@ -33,7 +33,7 @@ export interface SpotifyLyricsSnapshot {
   activeLineIndex: number;
 }
 
-interface SpotifyLyricEntry {
+export interface SpotifyLyricEntry {
   element: HTMLElement;
   line: LyricLine;
 }
@@ -111,22 +111,65 @@ export function hasVisibleSpotifyLyrics(rootDocument: Document = document): bool
   return readVisibleSpotifyLyricEntries(rootDocument).length > 0;
 }
 
-function readVisibleSpotifyLyricEntries(rootDocument: Document): SpotifyLyricEntry[] {
-  const lyricElements = uniqueElements(
+export function readVisibleSpotifyLyricElements(
+  rootDocument: Document = document,
+): HTMLElement[] {
+  return uniqueElements(
     spotifyLyricsLineSelectors.flatMap((selector) =>
       Array.from(rootDocument.querySelectorAll<HTMLElement>(selector)),
     ),
   ).filter(isVisibleElement);
+}
+
+export function readSpotifyLyricsContainer(
+  rootDocument: Document = document,
+): HTMLElement | null {
+  const firstLyricElement = readVisibleSpotifyLyricElements(rootDocument)[0];
+
+  if (!firstLyricElement) {
+    return null;
+  }
+
+  return (
+    firstLyricElement.closest<HTMLElement>('#main-view, .main-view-container') ??
+    firstLyricElement.closest<HTMLElement>(
+      'section[aria-label*="Lyrics"], [aria-label*="Lyrics"]',
+    ) ??
+    firstLyricElement.parentElement
+  );
+}
+
+export function readVisibleSpotifyLyricEntries(
+  rootDocument: Document = document,
+): SpotifyLyricEntry[] {
+  const lyricElements = readVisibleSpotifyLyricElements(rootDocument);
 
   return lyricElements
     .map((element, index) => ({
       element,
       line: {
         timeMs: index,
-        original: normalizeLyricText(element.textContent ?? ''),
+        original: normalizeLyricText(getSpotifyLyricText(element)),
       },
     }))
-    .filter((entry) => entry.line.original.length > 0);
+    .filter((entry) => entry.line.original.length > 0)
+    .map((entry, index) => ({
+      ...entry,
+      line: {
+        ...entry.line,
+        timeMs: index,
+      },
+    }));
+}
+
+function getSpotifyLyricText(element: HTMLElement): string {
+  const clone = element.cloneNode(true) as HTMLElement;
+
+  clone.querySelectorAll('[data-lyra-inline-translation="true"]').forEach((node) => {
+    node.remove();
+  });
+
+  return clone.textContent ?? '';
 }
 
 function readTrackIdentityFromNowPlayingRegion(
@@ -327,7 +370,8 @@ function isActiveLyricElement(element: HTMLElement): boolean {
     ariaCurrent === 'step' ||
     ariaSelected === 'true' ||
     dataActive === 'true' ||
-    /\b(active|current|selected)\b/i.test(className)
+    /\b(active|current|selected)\b/i.test(className) ||
+    window.getComputedStyle(element).color === 'rgb(255, 255, 255)'
   );
 }
 

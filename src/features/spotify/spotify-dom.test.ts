@@ -6,6 +6,7 @@ import {
   hasVisibleSpotifyLyrics,
   readCurrentTrackIdentity,
   readPlaybackPositionMs,
+  readSpotifyLyricsContainer,
   readSpotifyLyricsSnapshot,
 } from './spotify-dom';
 
@@ -107,6 +108,52 @@ describe('readSpotifyLyricsSnapshot', () => {
     });
   });
 
+  test('ignores Lyra inline translations when reading Spotify lyric text', () => {
+    document.body.innerHTML = `
+      <section aria-label="Lyrics">
+        <div data-testid="lyrics-line">
+          Hello
+          <div data-lyra-inline-translation="true">你好</div>
+        </div>
+      </section>
+    `;
+
+    expect(readSpotifyLyricsSnapshot(document)).toEqual({
+      activeLineIndex: -1,
+      lines: [{ timeMs: 0, original: 'Hello' }],
+    });
+  });
+
+  test('ignores virtual lyric rows without Spotify lyric text', () => {
+    document.body.innerHTML = `
+      <section aria-label="Lyrics">
+        <div data-testid="lyrics-line">
+          <div></div>
+          <div data-lyra-inline-translation="true">离屏翻译</div>
+        </div>
+        <div data-testid="lyrics-line">
+          <div>Welcome to your life</div>
+        </div>
+      </section>
+    `;
+
+    expect(readSpotifyLyricsSnapshot(document)).toEqual({
+      activeLineIndex: -1,
+      lines: [{ timeMs: 0, original: 'Welcome to your life' }],
+    });
+  });
+
+  test('detects Spotify active lyric lines from white computed text color', () => {
+    document.body.innerHTML = `
+      <section aria-label="Lyrics">
+        <div data-testid="lyrics-line" style="color: rgb(205, 205, 205)">Hello</div>
+        <div data-testid="lyrics-line" style="color: rgb(255, 255, 255)">World</div>
+      </section>
+    `;
+
+    expect(readSpotifyLyricsSnapshot(document)?.activeLineIndex).toBe(1);
+  });
+
   test('returns null when no Spotify lyric lines are visible', () => {
     document.body.innerHTML = `
       <section aria-label="Lyrics">
@@ -163,5 +210,29 @@ describe('hasVisibleSpotifyLyrics', () => {
     `;
 
     expect(hasVisibleSpotifyLyrics(document)).toBe(true);
+  });
+});
+
+describe('readSpotifyLyricsContainer', () => {
+  test('returns the nearest lyrics section for visible Spotify lyric lines', () => {
+    document.body.innerHTML = `
+      <div id="main-view" data-testid="main-view">
+        <section aria-label="Lyrics">
+          <div>
+            <div data-testid="lyrics-line">Hello</div>
+          </div>
+        </section>
+      </div>
+    `;
+
+    expect(readSpotifyLyricsContainer(document)?.getAttribute('data-testid')).toBe(
+      'main-view',
+    );
+  });
+
+  test('returns null when no visible Spotify lyric lines exist', () => {
+    document.body.innerHTML = '<main>No lyrics here</main>';
+
+    expect(readSpotifyLyricsContainer(document)).toBeNull();
   });
 });

@@ -3,6 +3,7 @@ import './style.css';
 import ReactDOM from 'react-dom/client';
 
 import { ContentApp } from '../../src/features/overlay/content-app';
+import { clearInlineLyrics } from '../../src/features/overlay/inline-lyrics';
 import { createLyricsOverlayGate } from '../../src/features/overlay/overlay-gate';
 import { hasVisibleSpotifyLyrics } from '../../src/features/spotify/spotify-dom';
 import { isExtensionContextInvalidatedError } from '../../src/shared/extension-api';
@@ -51,6 +52,7 @@ export default defineContentScript({
         };
       },
       removeInactiveOverlay: () => {
+        clearInlineLyrics();
         document.querySelectorAll('lyra-overlay').forEach((element) => {
           element.remove();
         });

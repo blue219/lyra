@@ -8,7 +8,6 @@ describe('sanitizeOverlaySettings', () => {
       sanitizeOverlaySettings({
         targetLanguage: '',
         fontSize: 'huge',
-        position: 'center',
       }),
     ).toEqual(defaultOverlaySettings);
   });
@@ -18,12 +17,10 @@ describe('sanitizeOverlaySettings', () => {
       sanitizeOverlaySettings({
         targetLanguage: 'en-US',
         fontSize: 'lg',
-        position: 'bottom',
       }),
     ).toEqual({
       targetLanguage: 'en-US',
       fontSize: 'lg',
-      position: 'bottom',
     });
   });
 
@@ -32,7 +29,6 @@ describe('sanitizeOverlaySettings', () => {
       sanitizeOverlaySettings({
         targetLanguage: 'ja-JP',
         fontSize: 'md',
-        position: 'right',
       }),
     ).toEqual(defaultOverlaySettings);
 
@@ -40,7 +36,6 @@ describe('sanitizeOverlaySettings', () => {
       sanitizeOverlaySettings({
         targetLanguage: 'es-ES',
         fontSize: 'md',
-        position: 'right',
       }),
     ).toEqual(defaultOverlaySettings);
   });
@@ -50,12 +45,10 @@ describe('sanitizeOverlaySettings', () => {
       sanitizeOverlaySettings({
         targetLanguage: 'zh-CN',
         fontSize: 'sm',
-        position: 'left',
       }),
     ).toEqual({
       targetLanguage: 'zh-CN',
       fontSize: 'sm',
-      position: 'left',
     });
   });
 });
