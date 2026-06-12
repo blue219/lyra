@@ -23,7 +23,6 @@ describe('toLyricsResult', () => {
     expect(toLyricsResult(payload)).toEqual({
       status: 'monolingual',
       source: 'lrclib',
-      sourceLanguage: 'zh-CN',
       lines: [
         {
           timeMs: 1_000,
@@ -52,7 +51,6 @@ describe('toLyricsResult', () => {
     expect(toLyricsResult(payload)).toEqual({
       status: 'monolingual',
       source: 'lrclib',
-      sourceLanguage: 'en-US',
       lines: [
         {
           timeMs: 1_000,
@@ -81,7 +79,6 @@ describe('toLyricsResult', () => {
     expect(toLyricsResult(payload)).toEqual({
       status: 'monolingual',
       source: 'lrclib',
-      sourceLanguage: 'en-US',
       lines: [
         {
           timeMs: 1_234,
@@ -89,6 +86,27 @@ describe('toLyricsResult', () => {
         },
       ],
     });
+  });
+
+  test('strips ASS style override tags from synced lyrics', () => {
+    const payload: LrclibLyricsResponse = {
+      id: 1,
+      trackName: 'Track',
+      artistName: 'Artist',
+      albumName: 'Album',
+      duration: 180,
+      instrumental: false,
+      plainLyrics: 'Talking away',
+      syncedLyrics:
+        '[00:01.00] {\\fn黑体\\fs22\\bord1\\shad0\\3aHBE\\4aH00\\fscx67\\fscy66\\2cHFFFFFF\\3cH808080}Talking away',
+    };
+
+    expect(toLyricsResult(payload).lines).toEqual([
+      {
+        timeMs: 1_000,
+        original: 'Talking away',
+      },
+    ]);
   });
 
   test('returns unavailable when LRCLIB has no synced lyrics', () => {

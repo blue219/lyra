@@ -85,7 +85,6 @@ describe('requestLyrics', () => {
     await requestTranslatedLyrics(
       [{ timeMs: 0, original: 'Hello' }],
       'zh-CN',
-      'en-US',
       'spotify',
     );
 
@@ -93,7 +92,6 @@ describe('requestLyrics', () => {
       type: 'lyra:translateLyrics',
       lines: [{ timeMs: 0, original: 'Hello' }],
       targetLanguage: 'zh-CN',
-      sourceLanguage: 'en-US',
       source: 'spotify',
     });
   });

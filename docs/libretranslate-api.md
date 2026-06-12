@@ -83,7 +83,9 @@ console.log(data.translatedText);
 
 ## Lyra Integration
 
-Lyra batches lyric lines into a single `q` value separated by newlines, then splits `translatedText` back into line-level translations. If the split line count does not match the original line count, Lyra discards the translation response and shows original lyrics.
+Lyra detects source language first by sending all lyric lines as a newline-separated `q` value to `POST /detect` with `api_key` in the JSON body. Detection runs once for the whole lyrics result, not per line.
+
+Lyra then batches lyric lines into a single `q` value separated by newlines for `POST /translate`, and splits `translatedText` back into line-level translations. If detection fails, returns an unsupported language, matches the selected target language, or if the translated split line count does not match the original line count, Lyra shows original lyrics.
 
 The browser extension currently maps UI language values as follows:
 

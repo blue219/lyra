@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, test, vi } from 'vitest';
 
-import { translateLyricLines } from './translate';
+import { translateLyricLines, translateLyricsResult } from './translate';
 import type { LyricLine } from '../../shared/types';
 
 const simpleLines: LyricLine[] = [
@@ -14,14 +14,27 @@ describe('translateLyricLines', () => {
     vi.unstubAllEnvs();
   });
 
-  test('posts batched lyrics to LibreTranslate and populates translated fields', async () => {
+  test('detects source language before translating lyrics', async () => {
     vi.stubEnv('VITE_LIBRETRANSLATE_BASE_URL', 'http://translate.test');
     vi.stubEnv('VITE_LIBRETRANSLATE_API_KEY', 'test-key');
 
     vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
-      expect(String(input)).toBe('http://translate.test/translate');
       expect(init?.method).toBe('POST');
       expect(init?.headers).toEqual({ 'Content-Type': 'application/json' });
+
+      if (String(input) === 'http://translate.test/detect') {
+        expect(JSON.parse(String(init?.body))).toEqual({
+          q: 'Hello\nWorld',
+          api_key: 'test-key',
+        });
+
+        return createJsonResponse({
+          confidence: 90,
+          language: 'en',
+        });
+      }
+
+      expect(String(input)).toBe('http://translate.test/translate');
       expect(JSON.parse(String(init?.body))).toEqual({
         q: 'Hello\nWorld',
         source: 'en',
@@ -35,7 +48,7 @@ describe('translateLyricLines', () => {
       });
     });
 
-    const result = await translateLyricLines(simpleLines, 'en-US', 'zh-CN');
+    const result = await translateLyricLines(simpleLines, 'zh-CN');
 
     expect(result).toEqual([
       {
@@ -53,55 +66,264 @@ describe('translateLyricLines', () => {
     ]);
   });
 
-  test('returns original lines unchanged when the source and target are the same', async () => {
+  test('accepts LibreTranslate detect responses returned as an array', async () => {
     vi.stubEnv('VITE_LIBRETRANSLATE_API_KEY', 'test-key');
-    const fetchMock = vi.spyOn(globalThis, 'fetch');
+    vi.spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(
+        createJsonResponse([
+          {
+            confidence: 71,
+            language: 'en',
+          },
+        ]),
+      )
+      .mockResolvedValueOnce(
+        createJsonResponse({
+          translatedText: '你好\n世界',
+        }),
+      );
 
-    const result = await translateLyricLines(simpleLines, 'en-US', 'en-US');
+    const result = await translateLyricLines(simpleLines, 'zh-CN');
+
+    expect(result).toEqual([
+      {
+        timeMs: 1_000,
+        original: 'Hello',
+        translated: '你好',
+        translatedLanguage: 'zh-CN',
+      },
+      {
+        timeMs: 3_000,
+        original: 'World',
+        translated: '世界',
+        translatedLanguage: 'zh-CN',
+      },
+    ]);
+  });
+
+  test('strips ASS style override tags from translated lyrics', async () => {
+    vi.stubEnv('VITE_LIBRETRANSLATE_API_KEY', 'test-key');
+    vi.spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(
+        createJsonResponse([
+          {
+            confidence: 71,
+            language: 'en',
+          },
+        ]),
+      )
+      .mockResolvedValueOnce(
+        createJsonResponse({
+          translatedText:
+            '你好\n{\\fn黑体\\fs22\\bord1\\shad0\\3aHBE\\4aH00\\fscx67\\fscy66\\2cHFFFFFF\\3cH808080}世界',
+        }),
+      );
+
+    const result = await translateLyricLines(simpleLines, 'zh-CN');
+
+    expect(result).toEqual([
+      {
+        timeMs: 1_000,
+        original: 'Hello',
+        translated: '你好',
+        translatedLanguage: 'zh-CN',
+      },
+      {
+        timeMs: 3_000,
+        original: 'World',
+        translated: '世界',
+        translatedLanguage: 'zh-CN',
+      },
+    ]);
+  });
+
+  test('keeps musical marker translations as the original marker', async () => {
+    vi.stubEnv('VITE_LIBRETRANSLATE_API_KEY', 'test-key');
+    vi.spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(
+        createJsonResponse([
+          {
+            confidence: 71,
+            language: 'en',
+          },
+        ]),
+      )
+      .mockResolvedValueOnce(
+        createJsonResponse({
+          translatedText: '你好\n? 吗?',
+        }),
+      );
+
+    const result = await translateLyricLines(
+      [
+        { timeMs: 1_000, original: 'Hello' },
+        { timeMs: 3_000, original: '♪' },
+      ],
+      'zh-CN',
+    );
+
+    expect(result).toEqual([
+      {
+        timeMs: 1_000,
+        original: 'Hello',
+        translated: '你好',
+        translatedLanguage: 'zh-CN',
+      },
+      {
+        timeMs: 3_000,
+        original: '♪',
+        translated: '♪',
+        translatedLanguage: 'zh-CN',
+      },
+    ]);
+  });
+
+  test('returns original lines unchanged when detected source and target are the same', async () => {
+    vi.stubEnv('VITE_LIBRETRANSLATE_API_KEY', 'test-key');
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      createJsonResponse({
+        confidence: 90,
+        language: 'zh-Hans',
+      }),
+    );
+
+    const result = await translateLyricLines(simpleLines, 'zh-CN');
 
     expect(result).toEqual(simpleLines);
-    expect(fetchMock).not.toHaveBeenCalled();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(String(fetchMock.mock.calls[0]?.[0])).toBe(
+      'http://154.44.10.127:5000/detect',
+    );
   });
 
   test('returns original lines when the API key is missing', async () => {
     vi.stubEnv('VITE_LIBRETRANSLATE_API_KEY', '');
     const fetchMock = vi.spyOn(globalThis, 'fetch');
 
-    const result = await translateLyricLines(simpleLines, 'en-US', 'zh-CN');
+    const result = await translateLyricLines(simpleLines, 'zh-CN');
 
     expect(result).toEqual(simpleLines);
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  test('returns original lines when the API response is not ok', async () => {
+  test('returns original lines when language detection fails', async () => {
     vi.stubEnv('VITE_LIBRETRANSLATE_API_KEY', 'test-key');
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('', { status: 429 }));
 
-    const result = await translateLyricLines(simpleLines, 'en-US', 'zh-CN');
+    const result = await translateLyricLines(simpleLines, 'zh-CN');
 
     expect(result).toEqual(simpleLines);
   });
 
-  test('returns original lines when the response format is invalid', async () => {
+  test('returns original lines when language detection returns an unsupported language', async () => {
     vi.stubEnv('VITE_LIBRETRANSLATE_API_KEY', 'test-key');
-    vi.spyOn(globalThis, 'fetch').mockResolvedValue(createJsonResponse({}));
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      createJsonResponse({
+        confidence: 90,
+        language: 'ja',
+      }),
+    );
 
-    const result = await translateLyricLines(simpleLines, 'en-US', 'zh-CN');
+    const result = await translateLyricLines(simpleLines, 'zh-CN');
+
+    expect(result).toEqual(simpleLines);
+  });
+
+  test('returns original lines when the translation response is not ok', async () => {
+    vi.stubEnv('VITE_LIBRETRANSLATE_API_KEY', 'test-key');
+    vi.spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(
+        createJsonResponse({
+          confidence: 90,
+          language: 'en',
+        }),
+      )
+      .mockResolvedValueOnce(new Response('', { status: 429 }));
+
+    const result = await translateLyricLines(simpleLines, 'zh-CN');
+
+    expect(result).toEqual(simpleLines);
+  });
+
+  test('returns original lines when the translation response format is invalid', async () => {
+    vi.stubEnv('VITE_LIBRETRANSLATE_API_KEY', 'test-key');
+    vi.spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(
+        createJsonResponse({
+          confidence: 90,
+          language: 'en',
+        }),
+      )
+      .mockResolvedValueOnce(createJsonResponse({}));
+
+    const result = await translateLyricLines(simpleLines, 'zh-CN');
 
     expect(result).toEqual(simpleLines);
   });
 
   test('returns original lines when the translated line count mismatches', async () => {
     vi.stubEnv('VITE_LIBRETRANSLATE_API_KEY', 'test-key');
-    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-      createJsonResponse({
-        translatedText: '你好世界',
-      }),
-    );
+    vi.spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(
+        createJsonResponse({
+          confidence: 90,
+          language: 'en',
+        }),
+      )
+      .mockResolvedValueOnce(
+        createJsonResponse({
+          translatedText: '你好世界',
+        }),
+      );
 
-    const result = await translateLyricLines(simpleLines, 'en-US', 'zh-CN');
+    const result = await translateLyricLines(simpleLines, 'zh-CN');
 
     expect(result).toEqual(simpleLines);
+  });
+
+  test('populates source language on translated lyrics results', async () => {
+    vi.stubEnv('VITE_LIBRETRANSLATE_API_KEY', 'test-key');
+    vi.spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(
+        createJsonResponse({
+          confidence: 90,
+          language: 'en',
+        }),
+      )
+      .mockResolvedValueOnce(
+        createJsonResponse({
+          translatedText: '你好\n世界',
+        }),
+      );
+
+    const result = await translateLyricsResult(
+      {
+        status: 'monolingual',
+        lines: simpleLines,
+        source: 'spotify',
+      },
+      'zh-CN',
+    );
+
+    expect(result).toEqual({
+      status: 'bilingual',
+      lines: [
+        {
+          timeMs: 1_000,
+          original: 'Hello',
+          translated: '你好',
+          translatedLanguage: 'zh-CN',
+        },
+        {
+          timeMs: 3_000,
+          original: 'World',
+          translated: '世界',
+          translatedLanguage: 'zh-CN',
+        },
+      ],
+      source: 'spotify',
+      sourceLanguage: 'en-US',
+    });
   });
 });
 

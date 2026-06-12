@@ -11,15 +11,16 @@ export async function translateLyricsResult(
     return result;
   }
 
-  const translatedLines = await translateLyricLines(
+  const translationResult = await translateLyricLinesWithDetection(
     result.lines,
-    result.sourceLanguage,
     targetLanguage,
   );
+  const translatedLines = translationResult.lines;
   const hasAnyTranslation = translatedLines.some((line) => Boolean(line.translated));
 
   return {
     ...result,
+    sourceLanguage: translationResult.sourceLanguage,
     status: hasAnyTranslation ? 'bilingual' : 'monolingual',
     lines: translatedLines,
   };
@@ -30,25 +31,40 @@ export async function translateLyricsResult(
  */
 export async function translateLyricLines(
   lines: LyricLine[],
-  sourceLanguage: string | undefined,
   targetLanguage: string,
 ): Promise<LyricLine[]> {
+  return (await translateLyricLinesWithDetection(lines, targetLanguage)).lines;
+}
+
+async function translateLyricLinesWithDetection(
+  lines: LyricLine[],
+  targetLanguage: string,
+): Promise<{ lines: LyricLine[]; sourceLanguage?: string }> {
   if (lines.length === 0) {
-    return lines;
+    return { lines };
   }
 
   const targetCode = toLibreTranslateLanguage(targetLanguage);
-  const sourceCode = toLibreTranslateLanguage(sourceLanguage);
 
-  if (!targetCode || !sourceCode || sourceCode === targetCode) {
-    return lines;
+  if (!targetCode) {
+    return { lines };
   }
 
   const apiKey = getLibreTranslateApiKey();
 
   if (!apiKey) {
     console.warn('[Lyra] LibreTranslate API key is missing');
-    return lines;
+    return { lines };
+  }
+
+  const sourceLanguage = await detectLyricsSourceLanguage(lines, apiKey);
+  const sourceCode = toLibreTranslateLanguage(sourceLanguage);
+
+  if (!sourceLanguage || !sourceCode || sourceCode === targetCode) {
+    return {
+      lines,
+      sourceLanguage,
+    };
   }
 
   try {
@@ -88,18 +104,34 @@ export async function translateLyricLines(
       console.warn(
         `[Lyra] Translation line count mismatch (got ${translatedLines.length}, expected ${lines.length})`,
       );
-      return lines;
+      return { lines, sourceLanguage };
     }
 
-    return lines.map((line, index) => ({
-      ...line,
-      translated: translatedLines[index]?.trim() || undefined,
-      translatedLanguage: targetLanguage,
-    }));
+    return {
+      lines: lines.map((line, index) => ({
+        ...line,
+        translated:
+          normalizeTranslatedLyricText(line, translatedLines[index] ?? '') || undefined,
+        translatedLanguage: targetLanguage,
+      })),
+      sourceLanguage,
+    };
   } catch (error) {
     console.warn('[Lyra] Translation failed, showing original lyrics:', error);
-    return lines;
+    return { lines, sourceLanguage };
   }
+}
+
+function normalizeTranslatedLyricText(line: LyricLine, text: string): string {
+  if (isMusicalMarkerLine(line.original)) {
+    return line.original.trim();
+  }
+
+  return text.replace(/\{\\[^{}]*\}/g, '').trim();
+}
+
+function isMusicalMarkerLine(text: string): boolean {
+  return /^[\s♪♫♬♩]+$/u.test(text);
 }
 
 function toLibreTranslateLanguage(language: string | undefined): string | null {
@@ -116,6 +148,55 @@ function toLibreTranslateLanguage(language: string | undefined): string | null {
   }
 
   return null;
+}
+
+async function detectLyricsSourceLanguage(
+  lines: LyricLine[],
+  apiKey: string,
+): Promise<string | undefined> {
+  try {
+    const response = await fetch(`${getLibreTranslateBaseUrl()}/detect`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        q: lines.map((line) => line.original).join(lineSeparator),
+        api_key: apiKey,
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`LibreTranslate detect request failed: ${response.status}`);
+    }
+
+    const data: unknown = await response.json();
+
+    const detectedLanguage = Array.isArray(data)
+      ? (data[0] as { language?: unknown } | undefined)?.language
+      : (data as { language?: unknown } | null)?.language;
+
+    if (typeof detectedLanguage !== 'string') {
+      throw new Error('Unexpected LibreTranslate detect response format');
+    }
+
+    return fromLibreTranslateLanguage(detectedLanguage);
+  } catch (error) {
+    console.warn('[Lyra] Language detection failed, showing original lyrics:', error);
+    return undefined;
+  }
+}
+
+function fromLibreTranslateLanguage(language: string): string | undefined {
+  if (language === 'en') {
+    return 'en-US';
+  }
+
+  if (language === 'zh-Hans') {
+    return 'zh-CN';
+  }
+
+  return undefined;
 }
 
 function getLibreTranslateBaseUrl(): string {

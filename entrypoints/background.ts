@@ -61,7 +61,6 @@ async function handleTranslateLyrics(
   const cacheKey = [
     message.source ?? 'spotify',
     message.targetLanguage ?? '',
-    message.sourceLanguage ?? '',
     message.lines.map((line) => line.original).join('\n'),
   ].join('__');
   const cached = lyricsCache.get(cacheKey);
@@ -74,7 +73,6 @@ async function handleTranslateLyrics(
     {
       status: 'monolingual',
       lines: message.lines,
-      sourceLanguage: message.sourceLanguage,
       source: message.source,
     },
     message.targetLanguage,

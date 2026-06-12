@@ -13,7 +13,6 @@ export interface TranslateLyricsMessage {
   type: 'lyra:translateLyrics';
   lines: LyricLine[];
   targetLanguage?: string;
-  sourceLanguage?: string;
   source?: LyricsResult['source'];
 }
 
@@ -73,7 +72,6 @@ export function requestLyrics(
 export function requestTranslatedLyrics(
   lines: LyricLine[],
   targetLanguage?: string,
-  sourceLanguage?: string,
   source: LyricsResult['source'] = 'spotify',
 ): Promise<LyricsResult> {
   const extensionApi = getExtensionApi();
@@ -81,7 +79,6 @@ export function requestTranslatedLyrics(
     type: 'lyra:translateLyrics',
     lines,
     targetLanguage,
-    sourceLanguage,
     source,
   };
 
@@ -90,7 +87,6 @@ export function requestTranslatedLyrics(
       {
         status: 'monolingual',
         lines,
-        sourceLanguage,
         source,
       },
       targetLanguage,
@@ -105,7 +101,6 @@ export function requestTranslatedLyrics(
             {
               status: 'monolingual',
               lines,
-              sourceLanguage,
               source,
             },
             targetLanguage,
@@ -118,7 +113,6 @@ export function requestTranslatedLyrics(
         {
           status: 'monolingual',
           lines,
-          sourceLanguage,
           source,
         },
         targetLanguage,

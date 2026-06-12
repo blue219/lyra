@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 
 import { LyricsOverlay } from './lyrics-overlay';
-import { detectSourceLanguage, findActiveLyricIndex } from '../lyrics/lyrics';
+import { findActiveLyricIndex } from '../lyrics/lyrics';
 import { requestLyrics, requestTranslatedLyrics } from '../lyrics/messages';
 import { defaultOverlaySettings, sanitizeOverlaySettings } from '../settings/settings';
 import {
@@ -138,7 +138,6 @@ export function ContentApp() {
         ? requestTranslatedLyrics(
             spotifyLyricsLines,
             settings.targetLanguage,
-            detectSourceLanguage(spotifyLyricsLines),
             'spotify',
           )
         : requestLyrics(track, settings.targetLanguage);

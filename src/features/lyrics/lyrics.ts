@@ -31,7 +31,6 @@ export function toLyricsResult(payload: LrclibLyricsResponse): LyricsResult {
   return {
     status: 'monolingual',
     lines,
-    sourceLanguage: detectSourceLanguage(lines),
     source: 'lrclib',
   };
 }
@@ -86,50 +85,14 @@ function parseLrcLine(line: string): LyricLine | null {
   const minutes = Number(match[1]);
   const seconds = Number(match[2]);
   const milliseconds = Number((match[3] ?? '').padEnd(3, '0'));
-  const text = match[4] ?? '';
+  const text = normalizeLrcLyricText(match[4] ?? '');
 
   return {
     timeMs: (minutes * 60 + seconds) * 1000 + milliseconds,
-    original: text.trim(),
+    original: text,
   };
 }
 
-function detectLanguage(text: string): string | undefined {
-  if (!text) {
-    return undefined;
-  }
-
-  if (/[ぁ-ゖ゠-ヿ]/u.test(text)) {
-    return 'ja-JP';
-  }
-
-  if (/[一-龯]/u.test(text)) {
-    return 'zh-CN';
-  }
-
-  if (/[ñáéíóúü¿¡]/iu.test(text)) {
-    return 'es-ES';
-  }
-
-  if (/^[\p{Script=Latin}\p{Number}\p{Punctuation}\s]+$/u.test(text)) {
-    return 'en-US';
-  }
-
-  return undefined;
-}
-
-export function detectSourceLanguage(lines: LyricLine[]): string | undefined {
-  const counts = new Map<string, number>();
-
-  for (const line of lines) {
-    if (!line.original) continue;
-    const lang = detectLanguage(line.original);
-    if (lang) {
-      counts.set(lang, (counts.get(lang) ?? 0) + 1);
-    }
-  }
-
-  if (counts.size === 0) return undefined;
-
-  return [...counts.entries()].sort((a, b) => b[1] - a[1])[0]![0];
+function normalizeLrcLyricText(text: string): string {
+  return text.replace(/\{\\[^{}]*\}/g, '').trim();
 }

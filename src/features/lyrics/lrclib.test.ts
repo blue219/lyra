@@ -48,7 +48,6 @@ describe('fetchLyricsFromLrclib', () => {
     expect(result).toEqual({
       status: 'monolingual',
       source: 'lrclib',
-      sourceLanguage: 'ja-JP',
       lines: [
         { timeMs: 190, original: '歩きつかれて ふりだす雨' },
         { timeMs: 5_200, original: 'つまらないまま 歩いてる' },

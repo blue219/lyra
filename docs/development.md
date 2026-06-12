@@ -49,7 +49,11 @@ Spotify lyric lines do not expose LRCLIB-style timestamps in the extension. For 
 
 LRCLIB is now a fallback source for original synced lyrics only. Lyra does not use LRCLIB embedded bilingual text as translation data and does not prefer LRCLIB results based on a requested translation language.
 
-Fallback lookup uses LRCLIB search with track and artist first, then track-only search if no artist-constrained match is found. The selected synced lyrics are parsed as original text and translated through LibreTranslate.
+Fallback lookup uses LRCLIB search with track and artist first, then track-only search if no artist-constrained match is found. The selected synced lyrics are parsed as original text, cleaned of ASS/SSA style override tags, and translated through LibreTranslate.
+
+## Source language detection
+
+Lyra detects the source language through the configured LibreTranslate backend before translation. It sends all lyric lines as one newline-separated `q` value to `POST /detect`, maps `en` to `en-US` and `zh-Hans` to `zh-CN`, and treats that value as the source language for the whole lyrics result. If detection fails, returns an unsupported language, or matches the selected target language, Lyra keeps showing original lyrics.
 
 ## LibreTranslate behavior
 
@@ -59,4 +63,7 @@ Lyra sends batched lyric lines to the configured LibreTranslate backend separate
 - `VITE_LIBRETRANSLATE_BASE_URL` can override the base URL.
 - `VITE_LIBRETRANSLATE_API_KEY` is required for translation requests.
 - The request body includes `q`, `source`, `target`, `format`, and `api_key`.
-- On network errors, non-2xx responses, response format errors, or line-count mismatches, Lyra keeps showing original lyrics.
+- Lyra sends `q` and `api_key` to `/detect` before translating.
+- Translated lyric text is cleaned of ASS/SSA style override tags before display.
+- Pure musical marker lines such as `♪` keep the same marker as their translation.
+- On detection errors, network errors, non-2xx responses, response format errors, or line-count mismatches, Lyra keeps showing original lyrics.
