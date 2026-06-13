@@ -4,7 +4,10 @@ import { describe, expect, test } from 'vitest';
 
 import {
   hasVisibleSpotifyLyrics,
+  isSpotifyLyricsPage,
+  markNativeSpotifyLyricsHidden,
   readCurrentTrackIdentity,
+  readSpotifyLyricsPageContainer,
   readPlaybackPositionMs,
   readSpotifyLyricsContainer,
   readSpotifyLyricsSnapshot,
@@ -163,6 +166,36 @@ describe('readSpotifyLyricsSnapshot', () => {
 
     expect(readSpotifyLyricsSnapshot(document)).toBeNull();
   });
+
+  test('still reads lyric lines after Lyra marks native lyrics as hidden', () => {
+    document.body.innerHTML = `
+      <section aria-label="Lyrics">
+        <div data-testid="lyrics-line">Hello</div>
+      </section>
+    `;
+
+    markNativeSpotifyLyricsHidden(document, true);
+
+    expect(readSpotifyLyricsSnapshot(document)).toEqual({
+      activeLineIndex: -1,
+      lines: [{ timeMs: 0, original: 'Hello' }],
+    });
+    expect(
+      document
+        .querySelector('[data-testid="lyrics-line"]')
+        ?.getAttribute('data-lyra-native-lyrics-hidden'),
+    ).toBe('true');
+  });
+});
+
+describe('isSpotifyLyricsPage', () => {
+  test('returns true for the Spotify lyrics route', () => {
+    expect(isSpotifyLyricsPage('https://open.spotify.com/lyrics')).toBe(true);
+  });
+
+  test('returns false for other Spotify routes', () => {
+    expect(isSpotifyLyricsPage('https://open.spotify.com/search')).toBe(false);
+  });
 });
 
 describe('hasVisibleSpotifyLyrics', () => {
@@ -234,5 +267,29 @@ describe('readSpotifyLyricsContainer', () => {
     document.body.innerHTML = '<main>No lyrics here</main>';
 
     expect(readSpotifyLyricsContainer(document)).toBeNull();
+  });
+});
+
+describe('readSpotifyLyricsPageContainer', () => {
+  test('returns the lyrics container when lyric lines are available', () => {
+    document.body.innerHTML = `
+      <main data-testid="main">
+        <section aria-label="Lyrics">
+          <div data-testid="lyrics-line">Hello</div>
+        </section>
+      </main>
+    `;
+
+    expect(readSpotifyLyricsPageContainer(document)?.getAttribute('data-testid')).toBe(
+      'main',
+    );
+  });
+
+  test('falls back to the main content container when lyric lines are unavailable', () => {
+    document.body.innerHTML = '<main data-testid="main">No lyrics yet</main>';
+
+    expect(readSpotifyLyricsPageContainer(document)?.getAttribute('data-testid')).toBe(
+      'main',
+    );
   });
 });

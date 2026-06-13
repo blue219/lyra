@@ -107,6 +107,35 @@ describe('renderInlineLyrics', () => {
     expect(translations[0].className).toContain('lyra-inline-translation--lg');
   });
 
+  test('inserts translations immediately after Spotify replaces lyric DOM nodes', () => {
+    document.body.innerHTML = `
+      <section aria-label="Lyrics">
+        <div data-testid="lyrics-line">Hello</div>
+      </section>
+    `;
+
+    renderInlineLyrics(document, bilingualLyrics, {
+      fontSize: 'md',
+      targetLanguage: 'zh-CN',
+    });
+
+    document.body.innerHTML = `
+      <section aria-label="Lyrics">
+        <div data-testid="lyrics-line">Hello</div>
+      </section>
+    `;
+
+    renderInlineLyrics(document, bilingualLyrics, {
+      fontSize: 'md',
+      targetLanguage: 'zh-CN',
+    });
+
+    const translation = document.querySelector('[data-lyra-inline-translation]');
+
+    expect(translation?.textContent).toBe('你好');
+    expect(document.querySelectorAll('[data-lyra-inline-translation]')).toHaveLength(1);
+  });
+
   test('removes stale translations when no matching translated line exists', () => {
     document.body.innerHTML = `
       <section aria-label="Lyrics">

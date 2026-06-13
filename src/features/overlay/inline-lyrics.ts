@@ -27,6 +27,25 @@ export function renderInlineLyrics(
   const lyricEntries = readVisibleSpotifyLyricEntries(rootDocument);
   const activeElements = new Set<Element>();
 
+  // Collect orphaned translations into a pool keyed by text content.
+  // Spotify's virtual scroller may replace DOM nodes between calls; this pool
+  // lets us re-attach existing translations instead of destroying and recreating.
+  const orphanPool = new Map<string, HTMLElement>();
+  rootDocument.querySelectorAll<HTMLElement>(inlineTranslationSelector).forEach((el) => {
+    const parent = el.parentElement;
+    if (!parent) {
+      el.remove();
+      return;
+    }
+    const isParentActive = lyricEntries.some((entry) => entry.element === parent);
+    if (!isParentActive) {
+      const key = el.textContent ?? '';
+      if (key && !orphanPool.has(key)) {
+        orphanPool.set(key, el);
+      }
+    }
+  });
+
   lyricEntries.forEach(({ element: lyricElement }, index) => {
     const lyricLine = lyrics.lines[index];
     const translatedText = lyricLine
@@ -34,37 +53,47 @@ export function renderInlineLyrics(
       : undefined;
 
     applyActiveLineStyles(lyricElement, index === options.activeLineIndex);
-    const existingTranslation = getInlineTranslation(lyricElement);
+    let translationElement = getInlineTranslation(lyricElement);
 
     if (!translatedText) {
-      existingTranslation?.remove();
+      translationElement?.remove();
       return;
     }
 
-    const translationElement =
-      existingTranslation ?? rootDocument.createElement('div');
-
-    translationElement.setAttribute('data-lyra-inline-translation', 'true');
-    translationElement.className = [
-      'lyra-inline-translation',
-      fontSizeClassNames[options.fontSize],
-    ].join(' ');
-    applyInlineTranslationStyles(translationElement, options.fontSize);
-    translationElement.textContent = translatedText;
-    activeElements.add(translationElement);
-
-    if (!existingTranslation) {
-      lyricElement.append(translationElement);
+    // Re-attach an orphaned translation with matching text when possible.
+    if (!translationElement) {
+      const orphan = orphanPool.get(translatedText);
+      if (orphan) {
+        orphanPool.delete(translatedText);
+        translationElement = orphan;
+        lyricElement.append(translationElement);
+      }
     }
+
+    if (!translationElement) {
+      translationElement = rootDocument.createElement('div');
+      translationElement.setAttribute('data-lyra-inline-translation', 'true');
+      applyInlineTranslationStyles(translationElement, options.fontSize);
+      translationElement.textContent = translatedText;
+      lyricElement.append(translationElement);
+    } else {
+      translationElement.setAttribute('data-lyra-inline-translation', 'true');
+      translationElement.className = [
+        'lyra-inline-translation',
+        fontSizeClassNames[options.fontSize],
+      ].join(' ');
+      if (translationElement.textContent !== translatedText) {
+        translationElement.textContent = translatedText;
+      }
+    }
+
+    activeElements.add(translationElement);
   });
 
-  rootDocument
-    .querySelectorAll<HTMLElement>(inlineTranslationSelector)
-    .forEach((translationElement) => {
-      if (!activeElements.has(translationElement)) {
-        translationElement.remove();
-      }
-    });
+  // Remove remaining orphans that couldn't be re-attached.
+  for (const orphan of orphanPool.values()) {
+    orphan.remove();
+  }
 }
 
 export function clearInlineLyrics(rootDocument: Document = document) {

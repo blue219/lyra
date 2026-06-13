@@ -27,6 +27,7 @@ const spotifyLyricsLineSelectors = [
   '[data-testid="lyrics-line"]',
   '[data-lyric-index]',
 ];
+const nativeLyricsHiddenAttribute = 'data-lyra-native-lyrics-hidden';
 
 export interface SpotifyLyricsSnapshot {
   lines: LyricLine[];
@@ -137,6 +138,44 @@ export function readSpotifyLyricsContainer(
     ) ??
     firstLyricElement.parentElement
   );
+}
+
+export function readSpotifyLyricsPageContainer(
+  rootDocument: Document = document,
+): HTMLElement | null {
+  const lyricsContainer = readSpotifyLyricsContainer(rootDocument);
+
+  return (
+    lyricsContainer?.closest<HTMLElement>('#main-view, .main-view-container, main') ??
+    lyricsContainer ??
+    findFirstVisibleContainer(rootDocument, [
+      '#main-view',
+      '.main-view-container',
+      'main',
+    ])
+  );
+}
+
+export function markNativeSpotifyLyricsHidden(
+  rootDocument: Document = document,
+  hidden: boolean,
+) {
+  readVisibleSpotifyLyricElements(rootDocument).forEach((element) => {
+    if (hidden) {
+      element.setAttribute(nativeLyricsHiddenAttribute, 'true');
+      return;
+    }
+
+    element.removeAttribute(nativeLyricsHiddenAttribute);
+  });
+}
+
+export function isSpotifyLyricsPage(url = window.location.href): boolean {
+  try {
+    return new URL(url).pathname === '/lyrics';
+  } catch {
+    return false;
+  }
 }
 
 export function readVisibleSpotifyLyricEntries(
