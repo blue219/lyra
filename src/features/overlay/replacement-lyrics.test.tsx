@@ -165,10 +165,16 @@ describe('ReplacementLyrics', () => {
     );
 
     expect(html).toContain('loading lyrics ...');
-    expect(html).toContain('lyra-skeleton-line');
+    expect((html.match(/lyra-skeleton-group/g) ?? []).length).toBe(5);
+    expect((html.match(/class=\"lyra-skeleton-line\"/g) ?? []).length).toBe(5);
+    expect((html.match(/class=\"lyra-skeleton-line lyra-skeleton-line--translation\"/g) ?? []).length).toBe(5);
     expect(html).toContain('overflow:hidden');
     expect(html).toContain('position:relative');
     expect(html).toContain('lyra-skeleton-beam');
+    expect(html).toContain('padding:64px 48px');
+    expect(html).toContain('max-width:980px');
+    expect(html).toContain('width:66.6667%');
+    expect(html).toContain('width:33.3333%');
     expect(html).toContain('width:28%');
     expect(html).toContain('transform:translateX(-160%)');
     expect(html).not.toContain('No synced lyrics available');
@@ -197,6 +203,7 @@ describe('ReplacementLyrics', () => {
     expect(html).toContain('World');
     expect(html).toContain('lyra-skeleton-line lyra-skeleton-line--translation');
     expect(html).toContain('lyra-skeleton-beam');
+    expect(html).toContain('width:33.3333%');
     expect(html).toContain('width:28%');
     expect(html).toContain('transform:translateX(-160%)');
   });

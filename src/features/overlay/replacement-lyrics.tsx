@@ -43,8 +43,9 @@ function getStatusLabel(phase: OverlayPhase, lyrics: LyricsResult): string {
   return getLyricsSourceLabel(lyrics);
 }
 
-const skeletonLineWidths = ['100%', '42%', '100%', '42%', '100%', '42%'];
-const translationSkeletonWidths = ['36%', '32%', '34%', '30%'];
+const loadingSkeletonGroupCount = 5;
+const skeletonOriginalWidth = '66.6667%';
+const skeletonTranslationWidth = '33.3333%';
 const skeletonHighlightGradient =
   'linear-gradient(90deg, rgba(255, 255, 255, 0) 0%, rgba(255, 255, 255, 0.08) 18%, rgba(255, 255, 255, 0.42) 50%, rgba(255, 255, 255, 0.08) 82%, rgba(255, 255, 255, 0) 100%)';
 const skeletonAnimationStyles = `
@@ -167,7 +168,7 @@ export function ReplacementLyrics({
           color: '#ffffff',
           height: 'calc(100vh - 96px)',
           overflowY: 'auto',
-          padding: '64px 32px',
+          padding: '64px 48px',
           scrollBehavior: 'smooth',
           width: '100%',
         }}
@@ -187,14 +188,28 @@ export function ReplacementLyrics({
             style={{
               display: 'flex',
               flexDirection: 'column',
-              gap: '22px',
+              gap: '32px',
             }}
           >
-            {skeletonLineWidths.map((width, index) => (
-              <div key={`skeleton-${index}`} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            {Array.from({ length: loadingSkeletonGroupCount }, (_, index) => (
+              <div
+                key={`skeleton-group-${index}`}
+                className="lyra-skeleton-group"
+                style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}
+              >
                 <div
                   className="lyra-skeleton-line"
-                  style={getSkeletonLineStyle('16px', width)}
+                  style={getSkeletonLineStyle('16px', skeletonOriginalWidth)}
+                >
+                  <span
+                    aria-hidden="true"
+                    className="lyra-skeleton-beam"
+                    style={getSkeletonBeamStyle()}
+                  />
+                </div>
+                <div
+                  className="lyra-skeleton-line lyra-skeleton-line--translation"
+                  style={getSkeletonLineStyle('14px', skeletonTranslationWidth)}
                 >
                   <span
                     aria-hidden="true"
@@ -338,12 +353,7 @@ export function ReplacementLyrics({
                 <div
                   className="lyra-skeleton-line lyra-skeleton-line--translation"
                   style={{
-                    ...getSkeletonLineStyle(
-                      '14px',
-                      translationSkeletonWidths[
-                        index % translationSkeletonWidths.length
-                      ],
-                    ),
+                    ...getSkeletonLineStyle('14px', skeletonTranslationWidth),
                     marginTop: '12px',
                   }}
                 >
