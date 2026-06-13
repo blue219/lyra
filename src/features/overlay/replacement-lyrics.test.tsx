@@ -171,8 +171,9 @@ describe('ReplacementLyrics', () => {
     expect(html).toContain('overflow:hidden');
     expect(html).toContain('position:relative');
     expect(html).toContain('lyra-skeleton-beam');
-    expect(html).toContain('padding:64px 48px');
-    expect(html).toContain('max-width:980px');
+    expect(html).toContain('padding:24px clamp(20px, 4vw, 48px) 64px');
+    expect(html).toContain('max-width:1024px');
+    expect(html).toContain('width:100%');
     expect(html).toContain('width:66.6667%');
     expect(html).toContain('width:33.3333%');
     expect(html).toContain('width:28%');

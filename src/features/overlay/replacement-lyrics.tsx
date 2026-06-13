@@ -44,6 +44,8 @@ function getStatusLabel(phase: OverlayPhase, lyrics: LyricsResult): string {
 }
 
 const loadingSkeletonGroupCount = 5;
+const lyricsContentMaxWidth = '1024px';
+const lyricsHorizontalPadding = 'clamp(20px, 4vw, 48px)';
 const skeletonOriginalWidth = '66.6667%';
 const skeletonTranslationWidth = '33.3333%';
 const skeletonHighlightGradient =
@@ -168,7 +170,7 @@ export function ReplacementLyrics({
           color: '#ffffff',
           height: 'calc(100vh - 96px)',
           overflowY: 'auto',
-          padding: '64px 48px',
+          padding: `24px ${lyricsHorizontalPadding} 64px`,
           scrollBehavior: 'smooth',
           width: '100%',
         }}
@@ -177,9 +179,10 @@ export function ReplacementLyrics({
           style={{
             display: 'flex',
             flexDirection: 'column',
-            gap: '24px',
+            gap: '16px',
             margin: '0 auto',
-            maxWidth: '980px',
+            maxWidth: lyricsContentMaxWidth,
+            width: '100%',
           }}
         >
           {renderSkeletonAnimationStyle()}
@@ -188,14 +191,14 @@ export function ReplacementLyrics({
             style={{
               display: 'flex',
               flexDirection: 'column',
-              gap: '32px',
+              gap: '24px',
             }}
           >
             {Array.from({ length: loadingSkeletonGroupCount }, (_, index) => (
               <div
                 key={`skeleton-group-${index}`}
                 className="lyra-skeleton-group"
-                style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}
+                style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}
               >
                 <div
                   className="lyra-skeleton-line"
@@ -241,7 +244,7 @@ export function ReplacementLyrics({
           color: '#ffffff',
           height: 'calc(100vh - 96px)',
           overflowY: 'auto',
-          padding: '64px 32px',
+          padding: `64px ${lyricsHorizontalPadding}`,
           scrollBehavior: 'smooth',
         }}
       >
@@ -250,6 +253,8 @@ export function ReplacementLyrics({
             display: 'flex',
             flexDirection: 'column',
             gap: '16px',
+            margin: '0 auto',
+            maxWidth: lyricsContentMaxWidth,
             width: '100%',
           }}
         >
@@ -280,7 +285,7 @@ export function ReplacementLyrics({
         color: '#ffffff',
         height: 'calc(100vh - 96px)',
         overflowY: 'auto',
-        padding: '64px 48px',
+        padding: `64px ${lyricsHorizontalPadding}`,
         scrollBehavior: 'smooth',
         userSelect: 'none',
         WebkitUserSelect: 'none',
@@ -293,7 +298,8 @@ export function ReplacementLyrics({
           flexDirection: 'column',
           gap: '32px',
           margin: '0 auto',
-          maxWidth: '980px',
+          maxWidth: lyricsContentMaxWidth,
+          width: '100%',
         }}
       >
         {phase === 'loading-translation' ? renderSkeletonAnimationStyle() : null}
