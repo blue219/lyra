@@ -2,6 +2,7 @@ import { createLyricsCacheController } from '../src/features/lyrics/cache-contro
 import { fetchLyricsFromLrclib } from '../src/features/lyrics/lrclib';
 import {
   isFetchLyricsMessage,
+  isFetchOriginalLyricsMessage,
   isTranslateLyricsMessage,
 } from '../src/features/lyrics/messages';
 import { translateLyricsResult } from '../src/features/translation/translate';
@@ -28,6 +29,10 @@ export default defineBackground(() => {
   const extensionApi = getExtensionApi();
 
   extensionApi?.runtime?.onMessage.addListener((message) => {
+    if (isFetchOriginalLyricsMessage(message)) {
+      return lyricsCacheController.handleFetchOriginalLyrics(message.track);
+    }
+
     if (isFetchLyricsMessage(message)) {
       return lyricsCacheController.handleFetchLyrics(message.track, message.targetLanguage);
     }

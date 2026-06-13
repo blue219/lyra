@@ -33,6 +33,7 @@ describe('ReplacementLyrics', () => {
       <ReplacementLyrics
         activeLineIndex={1}
         fontSize="md"
+        phase="ready"
         lyrics={bilingualLyrics}
         targetLanguage="zh-CN"
       />,
@@ -46,6 +47,7 @@ describe('ReplacementLyrics', () => {
       <ReplacementLyrics
         activeLineIndex={0}
         fontSize="md"
+        phase="ready"
         lyrics={{
           ...bilingualLyrics,
           source: 'lrclib',
@@ -62,6 +64,7 @@ describe('ReplacementLyrics', () => {
       <ReplacementLyrics
         activeLineIndex={1}
         fontSize="md"
+        phase="ready"
         lyrics={bilingualLyrics}
         targetLanguage="zh-CN"
       />,
@@ -79,6 +82,7 @@ describe('ReplacementLyrics', () => {
       <ReplacementLyrics
         activeLineIndex={0}
         fontSize="md"
+        phase="ready"
         lyrics={bilingualLyrics}
         targetLanguage="zh-CN"
       />,
@@ -93,6 +97,7 @@ describe('ReplacementLyrics', () => {
       <ReplacementLyrics
         activeLineIndex={0}
         fontSize="md"
+        phase="ready"
         lyrics={bilingualLyrics}
         targetLanguage="zh-CN"
         onLineSelect={() => undefined}
@@ -109,6 +114,7 @@ describe('ReplacementLyrics', () => {
       <ReplacementLyrics
         activeLineIndex={0}
         fontSize="md"
+        phase="ready"
         lyrics={bilingualLyrics}
         targetLanguage="zh-CN"
       />,
@@ -127,6 +133,7 @@ describe('ReplacementLyrics', () => {
         <ReplacementLyrics
           activeLineIndex={0}
           fontSize="md"
+          phase="ready"
           lyrics={bilingualLyrics}
           targetLanguage="zh-CN"
           onLineSelect={(index) => selectedIndexes.push(index)}
@@ -146,17 +153,66 @@ describe('ReplacementLyrics', () => {
     });
   });
 
-  test('renders a readable unavailable state', () => {
+  test('renders loading lyrics skeleton rows', () => {
     const html = renderToStaticMarkup(
       <ReplacementLyrics
         activeLineIndex={-1}
         fontSize="md"
+        phase="loading-lyrics"
+        lyrics={{ status: 'unavailable', lines: [] }}
+        targetLanguage="zh-CN"
+      />,
+    );
+
+    expect(html).toContain('loading lyrics ...');
+    expect(html).toContain('lyra-skeleton-line');
+    expect(html).toContain('overflow:hidden');
+    expect(html).toContain('position:relative');
+    expect(html).toContain('lyra-skeleton-beam');
+    expect(html).toContain('width:28%');
+    expect(html).toContain('transform:translateX(-160%)');
+    expect(html).not.toContain('No synced lyrics available');
+  });
+
+  test('renders original lines with translation placeholders while translation loads', () => {
+    const html = renderToStaticMarkup(
+      <ReplacementLyrics
+        activeLineIndex={-1}
+        fontSize="md"
+        phase="loading-translation"
+        lyrics={{
+          status: 'monolingual',
+          source: 'spotify',
+          lines: [
+            { timeMs: 0, original: 'Hello' },
+            { timeMs: 1_000, original: 'World' },
+          ],
+        }}
+        targetLanguage="zh-CN"
+      />,
+    );
+
+    expect(html).toContain('loading translation ...');
+    expect(html).toContain('Hello');
+    expect(html).toContain('World');
+    expect(html).toContain('lyra-skeleton-line lyra-skeleton-line--translation');
+    expect(html).toContain('lyra-skeleton-beam');
+    expect(html).toContain('width:28%');
+    expect(html).toContain('transform:translateX(-160%)');
+  });
+
+  test('renders a lightweight unavailable state', () => {
+    const html = renderToStaticMarkup(
+      <ReplacementLyrics
+        activeLineIndex={-1}
+        fontSize="md"
+        phase="unavailable"
         lyrics={{ status: 'unavailable', lines: [] }}
         targetLanguage="zh-CN"
       />,
     );
 
     expect(html).toContain('No lyrics available');
-    expect(html).toContain('No synced lyrics available');
+    expect(html).not.toContain('No synced lyrics available');
   });
 });

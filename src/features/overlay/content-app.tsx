@@ -4,7 +4,11 @@ import { createPortal } from 'react-dom';
 import { ReplacementLyrics } from './replacement-lyrics';
 import { clearInlineLyrics } from './inline-lyrics';
 import { findActiveLyricIndex } from '../lyrics/lyrics';
-import { requestLyrics, requestTranslatedLyrics } from '../lyrics/messages';
+import {
+  requestLyrics,
+  requestOriginalLyrics,
+  requestTranslatedLyrics,
+} from '../lyrics/messages';
 import { defaultOverlaySettings, sanitizeOverlaySettings } from '../settings/settings';
 import {
   clickSpotifyLyricLine,
@@ -24,7 +28,13 @@ import type {
   TrackIdentity,
 } from '../../shared/types';
 
-type OverlayPhase = 'waiting-track' | 'loading' | 'ready' | 'unavailable' | 'error';
+export type OverlayPhase =
+  | 'waiting-track'
+  | 'loading-lyrics'
+  | 'loading-translation'
+  | 'ready'
+  | 'unavailable'
+  | 'error';
 
 type LyricsRequestSelection =
   | { type: 'spotify'; lines: LyricLine[] }
@@ -53,6 +63,15 @@ interface SelectedLineState {
   index: number;
   lyricsSource: LyricsResult['source'];
   syncedActiveLineIndexAtSelection: number;
+}
+
+interface LoadLyricsSelectionOptions {
+  selection: LyricsRequestSelection;
+  targetLanguage: string;
+  requestOriginalLyricsFn?: typeof requestOriginalLyrics;
+  requestLyricsFn?: typeof requestLyrics;
+  requestTranslatedLyricsFn?: typeof requestTranslatedLyrics;
+  onPhaseChange?: (snapshot: { phase: OverlayPhase; lyrics: LyricsResult }) => void;
 }
 
 interface InitialSelectedLineStateInput {
@@ -195,26 +214,26 @@ export function ContentApp() {
     }
 
     let isCancelled = false;
-    setPhase('loading');
+    loadLyricsSelection({
+      selection: lyricsSelection,
+      targetLanguage: settings.targetLanguage,
+      onPhaseChange: ({ phase: nextPhase, lyrics: nextLyrics }) => {
+        if (isCancelled) {
+          return;
+        }
 
-    const lyricsRequest =
-      lyricsSelection.type === 'spotify'
-        ? requestTranslatedLyrics(
-            lyricsSelection.lines,
-            settings.targetLanguage,
-            'spotify',
-          )
-        : requestLyrics(lyricsSelection.track, settings.targetLanguage);
-
-    lyricsRequest
-      .then((nextLyrics) => {
+        setLyrics(nextLyrics);
+        setPhase(nextPhase);
+      },
+    })
+      .then(({ phase: nextPhase, lyrics: nextLyrics }) => {
         if (isCancelled) {
           return;
         }
 
         console.log('[Lyra] content received lyrics:', nextLyrics.status, nextLyrics.lines.length);
         setLyrics(nextLyrics);
-        setPhase(nextLyrics.status === 'unavailable' ? 'unavailable' : 'ready');
+        setPhase(nextPhase);
       })
       .catch(() => {
         if (!isCancelled) {
@@ -361,7 +380,8 @@ export function ContentApp() {
             <ReplacementLyrics
               activeLineIndex={activeLineIndex}
               fontSize={settings.fontSize}
-              lyrics={phase === 'loading' ? lyrics : lyrics}
+              phase={phase}
+              lyrics={lyrics}
               onLineSelect={selectReplacementLine}
               targetLanguage={settings.targetLanguage}
             />,
@@ -666,8 +686,12 @@ function getSettingsEntryStyle(anchor: SettingsAnchor | null): CSSProperties {
 }
 
 function getPhaseLabel(phase: OverlayPhase, lyrics: LyricsResult): string {
-  if (phase === 'loading') {
+  if (phase === 'loading-lyrics') {
     return 'Loading synced lyrics.';
+  }
+
+  if (phase === 'loading-translation') {
+    return 'Loading lyric translation.';
   }
 
   if (phase === 'ready' && lyrics.status === 'bilingual') {
@@ -683,4 +707,79 @@ function getPhaseLabel(phase: OverlayPhase, lyrics: LyricsResult): string {
   }
 
   return 'Waiting for the current track.';
+}
+
+export async function loadLyricsSelection({
+  selection,
+  targetLanguage,
+  requestOriginalLyricsFn = requestOriginalLyrics,
+  requestLyricsFn = requestLyrics,
+  requestTranslatedLyricsFn = requestTranslatedLyrics,
+  onPhaseChange,
+}: LoadLyricsSelectionOptions): Promise<{ phase: OverlayPhase; lyrics: LyricsResult }> {
+  if (selection.type === 'spotify') {
+    onPhaseChange?.({
+      phase: 'loading-lyrics',
+      lyrics: emptyLyricsResult,
+    });
+
+    const monolingualLyrics: LyricsResult = {
+      status: 'monolingual',
+      lines: selection.lines,
+      source: 'spotify',
+    };
+
+    onPhaseChange?.({
+      phase: 'loading-translation',
+      lyrics: monolingualLyrics,
+    });
+
+    const translatedLyrics = await requestTranslatedLyricsFn(
+      selection.lines,
+      targetLanguage,
+      'spotify',
+    );
+
+    return {
+      phase: translatedLyrics.status === 'unavailable' ? 'unavailable' : 'ready',
+      lyrics: translatedLyrics,
+    };
+  }
+
+  if (selection.type === 'lrclib') {
+    onPhaseChange?.({
+      phase: 'loading-lyrics',
+      lyrics: emptyLyricsResult,
+    });
+
+    const fetchedLyrics = await requestOriginalLyricsFn(selection.track);
+
+    if (fetchedLyrics.status === 'unavailable' || fetchedLyrics.lines.length === 0) {
+      return {
+        phase: 'unavailable',
+        lyrics: fetchedLyrics,
+      };
+    }
+
+    onPhaseChange?.({
+      phase: 'loading-translation',
+      lyrics: fetchedLyrics,
+    });
+
+    const translatedLyrics = await requestTranslatedLyricsFn(
+      fetchedLyrics.lines,
+      targetLanguage,
+      fetchedLyrics.source,
+    );
+
+    return {
+      phase: translatedLyrics.status === 'unavailable' ? 'unavailable' : 'ready',
+      lyrics: translatedLyrics,
+    };
+  }
+
+  return {
+    phase: 'waiting-track',
+    lyrics: emptyLyricsResult,
+  };
 }

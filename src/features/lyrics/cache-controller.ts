@@ -28,6 +28,7 @@ interface LyricsCacheControllerOptions {
 }
 
 export interface LyricsCacheController {
+  handleFetchOriginalLyrics(track: TrackIdentity): Promise<LyricsResult>;
   handleFetchLyrics(
     track: TrackIdentity,
     targetLanguage?: string,
@@ -142,6 +143,18 @@ export function createLyricsCacheController(
   }
 
   return {
+    handleFetchOriginalLyrics(track: TrackIdentity): Promise<LyricsResult> {
+      const normalizedTrack = normalizeTrackIdentity(track);
+      const cacheKey = ['fallback-original', createTrackCacheKey(normalizedTrack)].join('__');
+
+      return getCachedOrLoad(cacheKey, undefined, async () => {
+        const lyrics = await options.fetchLyrics(normalizedTrack);
+
+        logger.log('[Lyra] bg original fallback lyrics result:', lyrics.status, lyrics.lines.length);
+        return lyrics;
+      });
+    },
+
     handleFetchLyrics(
       track: TrackIdentity,
       targetLanguage?: string,

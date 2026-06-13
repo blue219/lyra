@@ -130,6 +130,29 @@ describe('createLyricsCacheController', () => {
     expect(translateLyrics).toHaveBeenCalledTimes(1);
   });
 
+  test('returns untranslated fallback lyrics without triggering translation', async () => {
+    const storage = createStorage();
+    const fetchLyrics = vi.fn(async (): Promise<LyricsResult> => ({
+      status: 'monolingual',
+      source: 'lrclib',
+      lines: [{ timeMs: 0, original: 'Hello' }],
+    }));
+    const translateLyrics = vi.fn(async () => bilingualResult);
+    const controller = createController({
+      storage,
+      fetchLyrics,
+      translateLyrics,
+    });
+
+    await expect(controller.handleFetchOriginalLyrics(track)).resolves.toEqual({
+      status: 'monolingual',
+      source: 'lrclib',
+      lines: [{ timeMs: 0, original: 'Hello' }],
+    });
+    expect(fetchLyrics).toHaveBeenCalledTimes(1);
+    expect(translateLyrics).not.toHaveBeenCalled();
+  });
+
   test('deduplicates concurrent requests for the same cache key', async () => {
     const storage = createStorage();
     const translation = createDeferred<LyricsResult>();

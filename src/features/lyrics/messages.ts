@@ -9,6 +9,11 @@ export interface FetchLyricsMessage {
   targetLanguage?: string;
 }
 
+export interface FetchOriginalLyricsMessage {
+  type: 'lyra:fetchOriginalLyrics';
+  track: TrackIdentity;
+}
+
 export interface TranslateLyricsMessage {
   type: 'lyra:translateLyrics';
   lines: LyricLine[];
@@ -29,6 +34,18 @@ export function isFetchLyricsMessage(value: unknown): value is FetchLyricsMessag
   const message = value as Partial<FetchLyricsMessage>;
 
   return message.type === 'lyra:fetchLyrics' && Boolean(message.track);
+}
+
+export function isFetchOriginalLyricsMessage(
+  value: unknown,
+): value is FetchOriginalLyricsMessage {
+  if (!value || typeof value !== 'object') {
+    return false;
+  }
+
+  const message = value as Partial<FetchOriginalLyricsMessage>;
+
+  return message.type === 'lyra:fetchOriginalLyrics' && Boolean(message.track);
 }
 
 export function isTranslateLyricsMessage(
@@ -66,6 +83,26 @@ export function requestLyrics(
     );
   } catch (error) {
     return handleMessageError(error, () => fetchFallbackLyrics(track, targetLanguage));
+  }
+}
+
+export function requestOriginalLyrics(track: TrackIdentity): Promise<LyricsResult> {
+  const extensionApi = getExtensionApi();
+  const message: FetchOriginalLyricsMessage = {
+    type: 'lyra:fetchOriginalLyrics',
+    track,
+  };
+
+  if (!extensionApi?.runtime) {
+    return fetchLyricsFromLrclib(track);
+  }
+
+  try {
+    return Promise.resolve(extensionApi.runtime.sendMessage(message)).catch(
+      (error: unknown) => handleMessageError(error, () => fetchLyricsFromLrclib(track)),
+    );
+  } catch (error) {
+    return handleMessageError(error, () => fetchLyricsFromLrclib(track));
   }
 }
 

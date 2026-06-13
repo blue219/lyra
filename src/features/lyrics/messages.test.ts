@@ -1,6 +1,10 @@
 import { afterEach, describe, expect, test, vi } from 'vitest';
 
-import { requestLyrics, requestTranslatedLyrics } from './messages';
+import {
+  requestLyrics,
+  requestOriginalLyrics,
+  requestTranslatedLyrics,
+} from './messages';
 
 describe('requestLyrics', () => {
   afterEach(() => {
@@ -57,6 +61,35 @@ describe('requestLyrics', () => {
         artists: ['YUKI'],
       },
       targetLanguage: 'en-US',
+    });
+  });
+
+  test('can request untranslated lyrics for staged fallback rendering', async () => {
+    const sendMessage = vi.fn(() =>
+      Promise.resolve({
+        status: 'monolingual',
+        source: 'lrclib',
+        lines: [{ timeMs: 0, original: 'Hello' }],
+      }),
+    );
+
+    (globalThis as Record<string, unknown>).browser = {
+      runtime: {
+        sendMessage,
+      },
+    } as unknown as typeof browser;
+
+    await requestOriginalLyrics({
+      title: 'Home Sweet Home',
+      artists: ['YUKI'],
+    });
+
+    expect(sendMessage).toHaveBeenCalledWith({
+      type: 'lyra:fetchOriginalLyrics',
+      track: {
+        title: 'Home Sweet Home',
+        artists: ['YUKI'],
+      },
     });
   });
 

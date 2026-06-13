@@ -5,6 +5,7 @@ import { describe, expect, test } from 'vitest';
 import {
   calculateCenteredScrollTop,
   createLyricsRequestKey,
+  loadLyricsSelection,
   getInitialSelectedLineState,
   getReplacementActiveLineIndex,
   getSelectedPlaybackPositionMs,
@@ -104,6 +105,126 @@ describe('createLyricsRequestKey', () => {
         true,
       ),
     ).toBe('lrclib__zh-CN__Stand By Me__Ben E. King____180');
+  });
+});
+
+describe('loadLyricsSelection', () => {
+  test('starts Spotify requests with lyrics loading before switching to translation loading', async () => {
+    const snapshots: Array<{ phase: string; lineCount: number }> = [];
+
+    const result = await loadLyricsSelection({
+      selection: {
+        type: 'spotify',
+        lines: spotifyLines,
+      },
+      targetLanguage: 'zh-CN',
+      requestOriginalLyricsFn: async () => {
+        throw new Error('Spotify flow should not fetch fallback lyrics first');
+      },
+      requestLyricsFn: async () => {
+        throw new Error('Spotify flow should not fetch fallback lyrics first');
+      },
+      requestTranslatedLyricsFn: async (lines) => ({
+        status: 'bilingual',
+        source: 'spotify',
+        lines: lines.map((line) => ({
+          ...line,
+          translated: '你好',
+          translatedLanguage: 'zh-CN',
+        })),
+      }),
+      onPhaseChange: (snapshot) => {
+        snapshots.push({
+          phase: snapshot.phase,
+          lineCount: snapshot.lyrics.lines.length,
+        });
+      },
+    });
+
+    expect(snapshots).toEqual([
+      { phase: 'loading-lyrics', lineCount: 0 },
+      { phase: 'loading-translation', lineCount: 1 },
+    ]);
+    expect(result.phase).toBe('ready');
+    expect(result.lyrics.status).toBe('bilingual');
+  });
+
+  test('starts LRCLIB requests with lyrics loading and then switches to translation loading', async () => {
+    const snapshots: Array<{ phase: string; lineCount: number }> = [];
+
+    const result = await loadLyricsSelection({
+      selection: {
+        type: 'lrclib',
+        track,
+      },
+      targetLanguage: 'zh-CN',
+      requestOriginalLyricsFn: async () => ({
+        status: 'monolingual',
+        source: 'lrclib',
+        lines: [
+          { timeMs: 0, original: 'First' },
+          { timeMs: 1_000, original: 'Second' },
+        ],
+      }),
+      requestLyricsFn: async () => {
+        throw new Error('LRCLIB staged loading should translate in a separate step');
+      },
+      requestTranslatedLyricsFn: async (lines) => ({
+        status: 'bilingual',
+        source: 'lrclib',
+        lines: lines.map((line, index) => ({
+          ...line,
+          translated: index === 0 ? '第一' : '第二',
+          translatedLanguage: 'zh-CN',
+        })),
+      }),
+      onPhaseChange: (snapshot) => {
+        snapshots.push({
+          phase: snapshot.phase,
+          lineCount: snapshot.lyrics.lines.length,
+        });
+      },
+    });
+
+    expect(snapshots).toEqual([
+      { phase: 'loading-lyrics', lineCount: 0 },
+      { phase: 'loading-translation', lineCount: 2 },
+    ]);
+    expect(result.phase).toBe('ready');
+    expect(result.lyrics.status).toBe('bilingual');
+  });
+
+  test('stops LRCLIB requests at unavailable without falling back to the old empty-state flow', async () => {
+    const snapshots: Array<{ phase: string; lineCount: number }> = [];
+
+    const result = await loadLyricsSelection({
+      selection: {
+        type: 'lrclib',
+        track,
+      },
+      targetLanguage: 'zh-CN',
+      requestOriginalLyricsFn: async () => ({
+        status: 'unavailable',
+        source: 'lrclib',
+        lines: [],
+      }),
+      requestLyricsFn: async () => {
+        throw new Error('Unavailable LRCLIB lyrics should not request translated fallback');
+      },
+      requestTranslatedLyricsFn: async () => {
+        throw new Error('Unavailable LRCLIB lyrics should not request translation');
+      },
+      onPhaseChange: (snapshot) => {
+        snapshots.push({
+          phase: snapshot.phase,
+          lineCount: snapshot.lyrics.lines.length,
+        });
+      },
+    });
+
+    expect(snapshots).toEqual([{ phase: 'loading-lyrics', lineCount: 0 }]);
+    expect(result.phase).toBe('unavailable');
+    expect(result.lyrics.status).toBe('unavailable');
   });
 });
 
