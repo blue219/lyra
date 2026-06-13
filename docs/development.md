@@ -56,7 +56,7 @@ Spotify lyric lines do not expose LRCLIB-style timestamps in the extension. For 
 
 LRCLIB support remains available in the background lyrics API. The content script calls it when Spotify lyrics are not available on the lyrics page but the current Spotify track can be read.
 
-LRCLIB lookup uses LRCLIB search with track and artist first, then track-only search if no artist-constrained match is found. The selected synced lyrics are parsed as original text, cleaned of ASS/SSA style override tags, and translated through LibreTranslate.
+LRCLIB lookup uses LRCLIB search with track and artist first, then track-only search if no artist-constrained match is found. Each LRCLIB HTTP request retries transient failures up to two extra times with 200ms and 400ms backoff for network errors, HTTP 429, and HTTP 5xx responses. The selected synced lyrics are parsed as original text, cleaned of ASS/SSA style override tags, and translated through LibreTranslate. Non-retryable 4xx responses and invalid payloads fail immediately and fall through to the normal unavailable result path.
 
 ## Lyrics cache behavior
 
@@ -79,6 +79,8 @@ Lyra sends batched lyric lines to the configured LibreTranslate backend separate
 - `VITE_LIBRETRANSLATE_API_KEY` is required for translation requests.
 - The request body includes `q`, `source`, `target`, `format`, and `api_key`.
 - Lyra sends `q` and `api_key` to `/detect` before translating.
+- LibreTranslate `/detect` and `/translate` requests retry transient failures up to two extra times with 200ms and 400ms backoff for network errors, HTTP 429, and HTTP 5xx responses.
 - Translated lyric text is cleaned of ASS/SSA style override tags before display.
 - Pure musical marker lines such as `♪` keep the same marker as their translation.
-- On detection errors, network errors, non-2xx responses, response format errors, or line-count mismatches, Lyra keeps showing original lyrics.
+- On missing API keys, unsupported languages, non-retryable 4xx responses, response format errors, or line-count mismatches, Lyra keeps showing original lyrics immediately.
+- After transient retry attempts are exhausted for detection or translation, Lyra keeps showing original lyrics.

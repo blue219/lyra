@@ -1,4 +1,5 @@
 import type { LyricLine, LyricsResult } from '../../shared/types';
+import { retryWithBackoff } from '../../shared/retry';
 
 const defaultTranslateApiBaseUrl = 'http://154.44.10.127:5000';
 const lineSeparator = '\n';
@@ -68,23 +69,39 @@ async function translateLyricLinesWithDetection(
   }
 
   try {
-    const response = await fetch(`${getLibreTranslateBaseUrl()}/translate`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        q: lines.map((line) => line.original).join(lineSeparator),
-        source: sourceCode,
-        target: targetCode,
-        format: 'text',
-        api_key: apiKey,
-      }),
-    });
+    const response = await retryWithBackoff({
+      operation: async () => {
+        const nextResponse = await fetch(`${getLibreTranslateBaseUrl()}/translate`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            q: lines.map((line) => line.original).join(lineSeparator),
+            source: sourceCode,
+            target: targetCode,
+            format: 'text',
+            api_key: apiKey,
+          }),
+        });
 
-    if (!response.ok) {
-      throw new Error(`LibreTranslate request failed: ${response.status}`);
-    }
+        if (!nextResponse.ok) {
+          throw new HttpStatusError(
+            `LibreTranslate request failed: ${nextResponse.status}`,
+            nextResponse.status,
+          );
+        }
+
+        return nextResponse;
+      },
+      shouldRetry: isTransientRequestError,
+      onRetry: ({ attempt, maxAttempts, delayMs, error }) => {
+        console.warn(
+          `[Lyra] Translation request transient failure on attempt ${attempt}/${maxAttempts}; retrying in ${delayMs}ms:`,
+          error,
+        );
+      },
+    });
 
     const data: unknown = await response.json();
 
@@ -117,7 +134,10 @@ async function translateLyricLinesWithDetection(
       sourceLanguage,
     };
   } catch (error) {
-    console.warn('[Lyra] Translation failed, showing original lyrics:', error);
+    console.warn(
+      '[Lyra] Translation failed after retry exhaustion or a non-retryable error, showing original lyrics:',
+      error,
+    );
     return { lines, sourceLanguage };
   }
 }
@@ -155,20 +175,36 @@ async function detectLyricsSourceLanguage(
   apiKey: string,
 ): Promise<string | undefined> {
   try {
-    const response = await fetch(`${getLibreTranslateBaseUrl()}/detect`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        q: lines.map((line) => line.original).join(lineSeparator),
-        api_key: apiKey,
-      }),
-    });
+    const response = await retryWithBackoff({
+      operation: async () => {
+        const nextResponse = await fetch(`${getLibreTranslateBaseUrl()}/detect`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            q: lines.map((line) => line.original).join(lineSeparator),
+            api_key: apiKey,
+          }),
+        });
 
-    if (!response.ok) {
-      throw new Error(`LibreTranslate detect request failed: ${response.status}`);
-    }
+        if (!nextResponse.ok) {
+          throw new HttpStatusError(
+            `LibreTranslate detect request failed: ${nextResponse.status}`,
+            nextResponse.status,
+          );
+        }
+
+        return nextResponse;
+      },
+      shouldRetry: isTransientRequestError,
+      onRetry: ({ attempt, maxAttempts, delayMs, error }) => {
+        console.warn(
+          `[Lyra] Language detection transient failure on attempt ${attempt}/${maxAttempts}; retrying in ${delayMs}ms:`,
+          error,
+        );
+      },
+    });
 
     const data: unknown = await response.json();
 
@@ -182,8 +218,29 @@ async function detectLyricsSourceLanguage(
 
     return fromLibreTranslateLanguage(detectedLanguage);
   } catch (error) {
-    console.warn('[Lyra] Language detection failed, showing original lyrics:', error);
+    console.warn(
+      '[Lyra] Language detection failed after retry exhaustion or a non-retryable error, showing original lyrics:',
+      error,
+    );
     return undefined;
+  }
+}
+
+function isTransientRequestError(error: unknown): boolean {
+  return error instanceof TypeError || isRetryableHttpStatusError(error);
+}
+
+function isRetryableHttpStatusError(error: unknown): boolean {
+  return error instanceof HttpStatusError && (error.status === 429 || error.status >= 500);
+}
+
+class HttpStatusError extends Error {
+  constructor(
+    message: string,
+    readonly status: number,
+  ) {
+    super(message);
+    this.name = 'HttpStatusError';
   }
 }
 

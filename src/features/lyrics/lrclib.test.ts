@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, test, vi } from 'vitest';
 
 import { fetchLyricsFromLrclib } from './lrclib';
+import { createJsonResponse } from '../../shared/test-utils';
 
 describe('fetchLyricsFromLrclib', () => {
   afterEach(() => {
@@ -134,13 +135,131 @@ describe('fetchLyricsFromLrclib', () => {
       lines: [],
     });
   });
-});
 
-function createJsonResponse(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: {
-      'Content-Type': 'application/json',
-    },
+  test('retries the artist search after a transient 503 response', async () => {
+    const fetchMock = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(new Response('', { status: 503 }))
+      .mockResolvedValueOnce(
+        createJsonResponse([
+          {
+            id: 10989117,
+            trackName: 'Home Sweet Home',
+            artistName: 'YUKI',
+            albumName: 'Home Sweet Home',
+            duration: 287,
+            instrumental: false,
+            plainLyrics: '...',
+            syncedLyrics: '[00:00.19] 歩きつかれて ふりだす雨',
+          },
+        ]),
+      );
+
+    const result = await fetchLyricsFromLrclib({
+      title: 'Home Sweet Home',
+      artists: ['YUKI'],
+      album: 'Home Sweet Home',
+      durationSeconds: 287,
+    });
+
+    expect(result.status).toBe('monolingual');
+    expect(fetchMock).toHaveBeenCalledTimes(2);
   });
-}
+
+  test('continues to track-only search when artist search transient failures exhaust retries', async () => {
+    const fetchMock = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(new Response('', { status: 503 }))
+      .mockResolvedValueOnce(new Response('', { status: 503 }))
+      .mockResolvedValueOnce(new Response('', { status: 503 }))
+      .mockResolvedValueOnce(
+        createJsonResponse([
+          {
+            id: 222222,
+            trackName: 'Drama',
+            artistName: 'YUKI',
+            albumName: 'Drama',
+            duration: 260,
+            instrumental: false,
+            plainLyrics: '...',
+            syncedLyrics: '[00:01.00] 失くした約束は星に',
+          },
+        ]),
+      );
+
+    const result = await fetchLyricsFromLrclib({
+      title: 'Drama',
+      artists: ['Unknown'],
+    });
+
+    expect(result.status).toBe('monolingual');
+    expect(fetchMock).toHaveBeenCalledTimes(4);
+  });
+
+  test('retries the track-only search after a transient network error', async () => {
+    const fetchMock = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(createJsonResponse([]))
+      .mockRejectedValueOnce(new TypeError('network down'))
+      .mockResolvedValueOnce(
+        createJsonResponse([
+          {
+            id: 222222,
+            trackName: 'Drama',
+            artistName: 'YUKI',
+            albumName: 'Drama',
+            duration: 260,
+            instrumental: false,
+            plainLyrics: '...',
+            syncedLyrics: '[00:01.00] 失くした約束は星に',
+          },
+        ]),
+      );
+
+    const result = await fetchLyricsFromLrclib({
+      title: 'Drama',
+      artists: ['Unknown'],
+    });
+
+    expect(result.status).toBe('monolingual');
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+  });
+
+  test('does not retry on a 404 response', async () => {
+    const fetchMock = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(new Response('', { status: 404 }))
+      .mockResolvedValueOnce(new Response('', { status: 404 }));
+
+    const result = await fetchLyricsFromLrclib({
+      title: 'Missing',
+      artists: ['Nobody'],
+    });
+
+    expect(result).toEqual({
+      status: 'unavailable',
+      lines: [],
+    });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  test('returns unavailable after track-only transient failures exhaust retries', async () => {
+    const fetchMock = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(createJsonResponse([]))
+      .mockResolvedValueOnce(new Response('', { status: 503 }))
+      .mockResolvedValueOnce(new Response('', { status: 503 }))
+      .mockResolvedValueOnce(new Response('', { status: 503 }));
+
+    const result = await fetchLyricsFromLrclib({
+      title: 'Missing',
+      artists: ['Nobody'],
+    });
+
+    expect(result).toEqual({
+      status: 'unavailable',
+      lines: [],
+    });
+    expect(fetchMock).toHaveBeenCalledTimes(4);
+  });
+});

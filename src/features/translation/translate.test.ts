@@ -2,6 +2,7 @@ import { afterEach, describe, expect, test, vi } from 'vitest';
 
 import { translateLyricLines, translateLyricsResult } from './translate';
 import type { LyricLine } from '../../shared/types';
+import { createJsonResponse } from '../../shared/test-utils';
 
 const simpleLines: LyricLine[] = [
   { timeMs: 1_000, original: 'Hello' },
@@ -215,6 +216,78 @@ describe('translateLyricLines', () => {
     expect(result).toEqual(simpleLines);
   });
 
+  test('retries language detection after a transient 429 response', async () => {
+    vi.stubEnv('VITE_LIBRETRANSLATE_API_KEY', 'test-key');
+    const fetchMock = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(new Response('', { status: 429 }))
+      .mockResolvedValueOnce(
+        createJsonResponse({
+          confidence: 90,
+          language: 'en',
+        }),
+      )
+      .mockResolvedValueOnce(
+        createJsonResponse({
+          translatedText: '你好\n世界',
+        }),
+      );
+
+    const result = await translateLyricLines(simpleLines, 'zh-CN');
+
+    expect(result[0]?.translated).toBe('你好');
+    expect(result[1]?.translated).toBe('世界');
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+  });
+
+  test('retries translation after a transient 503 response', async () => {
+    vi.stubEnv('VITE_LIBRETRANSLATE_API_KEY', 'test-key');
+    const fetchMock = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(
+        createJsonResponse({
+          confidence: 90,
+          language: 'en',
+        }),
+      )
+      .mockResolvedValueOnce(new Response('', { status: 503 }))
+      .mockResolvedValueOnce(
+        createJsonResponse({
+          translatedText: '你好\n世界',
+        }),
+      );
+
+    const result = await translateLyricLines(simpleLines, 'zh-CN');
+
+    expect(result[0]?.translated).toBe('你好');
+    expect(result[1]?.translated).toBe('世界');
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+  });
+
+  test('retries translation after a transient network failure', async () => {
+    vi.stubEnv('VITE_LIBRETRANSLATE_API_KEY', 'test-key');
+    const fetchMock = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(
+        createJsonResponse({
+          confidence: 90,
+          language: 'en',
+        }),
+      )
+      .mockRejectedValueOnce(new TypeError('network down'))
+      .mockResolvedValueOnce(
+        createJsonResponse({
+          translatedText: '你好\n世界',
+        }),
+      );
+
+    const result = await translateLyricLines(simpleLines, 'zh-CN');
+
+    expect(result[0]?.translated).toBe('你好');
+    expect(result[1]?.translated).toBe('世界');
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+  });
+
   test('returns original lines when language detection returns an unsupported language', async () => {
     vi.stubEnv('VITE_LIBRETRANSLATE_API_KEY', 'test-key');
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(
@@ -229,7 +302,7 @@ describe('translateLyricLines', () => {
     expect(result).toEqual(simpleLines);
   });
 
-  test('returns original lines when the translation response is not ok', async () => {
+  test('returns original lines when the translation response is a non-retryable 400', async () => {
     vi.stubEnv('VITE_LIBRETRANSLATE_API_KEY', 'test-key');
     vi.spyOn(globalThis, 'fetch')
       .mockResolvedValueOnce(
@@ -238,11 +311,49 @@ describe('translateLyricLines', () => {
           language: 'en',
         }),
       )
-      .mockResolvedValueOnce(new Response('', { status: 429 }));
+      .mockResolvedValueOnce(new Response('', { status: 400 }));
 
     const result = await translateLyricLines(simpleLines, 'zh-CN');
 
     expect(result).toEqual(simpleLines);
+  });
+
+  test('returns original lines after translation transient failures exhaust retries', async () => {
+    vi.stubEnv('VITE_LIBRETRANSLATE_API_KEY', 'test-key');
+    const fetchMock = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(
+        createJsonResponse({
+          confidence: 90,
+          language: 'en',
+        }),
+      )
+      .mockResolvedValueOnce(new Response('', { status: 503 }))
+      .mockResolvedValueOnce(new Response('', { status: 503 }))
+      .mockResolvedValueOnce(new Response('', { status: 503 }));
+
+    const result = await translateLyricLines(simpleLines, 'zh-CN');
+
+    expect(result).toEqual(simpleLines);
+    expect(fetchMock).toHaveBeenCalledTimes(4);
+  });
+
+  test('does not retry translation on a 400 response', async () => {
+    vi.stubEnv('VITE_LIBRETRANSLATE_API_KEY', 'test-key');
+    const fetchMock = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(
+        createJsonResponse({
+          confidence: 90,
+          language: 'en',
+        }),
+      )
+      .mockResolvedValueOnce(new Response('', { status: 400 }));
+
+    const result = await translateLyricLines(simpleLines, 'zh-CN');
+
+    expect(result).toEqual(simpleLines);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
   test('returns original lines when the translation response format is invalid', async () => {
@@ -326,12 +437,3 @@ describe('translateLyricLines', () => {
     });
   });
 });
-
-function createJsonResponse(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: {
-      'Content-Type': 'application/json',
-    },
-  });
-}

@@ -1,6 +1,7 @@
 import { toLyricsResult, type LrclibLyricsResponse } from './lyrics';
 import { normalizeTrackIdentity } from '../spotify/track';
 import type { LyricsResult, TrackIdentity } from '../../shared/types';
+import { retryWithBackoff } from '../../shared/retry';
 
 const lrclibApiBaseUrl = 'https://lrclib.net/api';
 const lrclibClientName = 'Lyra 0.1.0';
@@ -54,23 +55,53 @@ async function fetchSearchLyricsMatch(
 
 async function requestLrclibJson<T>(url: string): Promise<T | null> {
   try {
-    const response = await fetch(url, {
-      headers: {
-        Accept: 'application/json',
-        'X-User-Agent': lrclibClientName,
-        'Lrclib-Client': lrclibClientName,
+    const response = await retryWithBackoff({
+      operation: async () => {
+        const nextResponse = await fetch(url, {
+          headers: {
+            Accept: 'application/json',
+            'X-User-Agent': lrclibClientName,
+            'Lrclib-Client': lrclibClientName,
+          },
+        });
+
+        if (!nextResponse.ok) {
+          throw new HttpStatusError(`LRCLIB ${nextResponse.status} for ${url}`, nextResponse.status);
+        }
+
+        return nextResponse;
+      },
+      shouldRetry: isTransientRequestError,
+      onRetry: ({ attempt, maxAttempts, delayMs, error }) => {
+        console.warn(
+          `[Lyra] LRCLIB transient failure on attempt ${attempt}/${maxAttempts}; retrying in ${delayMs}ms for ${url}:`,
+          error,
+        );
       },
     });
 
-    if (!response.ok) {
-      console.error(`[Lyra] LRCLIB ${response.status} for ${url}`);
-      return null;
-    }
-
     return (await response.json()) as T;
-  } catch {
-    console.error(`[Lyra] LRCLIB fetch error for ${url}`);
+  } catch (error) {
+    console.error(`[Lyra] LRCLIB request failed after retry exhaustion or a non-retryable error for ${url}:`, error);
     return null;
+  }
+}
+
+function isTransientRequestError(error: unknown): boolean {
+  return error instanceof TypeError || isRetryableHttpStatusError(error);
+}
+
+function isRetryableHttpStatusError(error: unknown): boolean {
+  return error instanceof HttpStatusError && (error.status === 429 || error.status >= 500);
+}
+
+class HttpStatusError extends Error {
+  constructor(
+    message: string,
+    readonly status: number,
+  ) {
+    super(message);
+    this.name = 'HttpStatusError';
   }
 }
 
