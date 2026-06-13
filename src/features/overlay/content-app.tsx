@@ -1,4 +1,4 @@
-import { useEffect, useState, type CSSProperties } from 'react';
+import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import { createPortal } from 'react-dom';
 
 import { ReplacementLyrics } from './replacement-lyrics';
@@ -111,6 +111,7 @@ export function ContentApp() {
   const [selectedLineState, setSelectedLineState] = useState<SelectedLineState | null>(
     null,
   );
+  const previousPlaybackPositionMsRef = useRef<number | null>(null);
 
   const lyricsSelection = selectLyricsRequest(
     spotifyLyricsLines,
@@ -280,11 +281,27 @@ export function ContentApp() {
     const scroller = replacementHost?.querySelector<HTMLElement>(
       '[data-lyra-replacement-scroll="true"]',
     );
-    const activeLine = scroller?.querySelector<HTMLElement>(
+    const shouldResetScrollTop = shouldResetScrollTopOnPlaybackReset({
+      previousPlaybackPositionMs: previousPlaybackPositionMsRef.current,
+      playbackPositionMs,
+    });
+
+    previousPlaybackPositionMsRef.current = playbackPositionMs;
+
+    if (!scroller) {
+      return;
+    }
+
+    if (shouldResetScrollTop) {
+      scroller.scrollTop = 0;
+      return;
+    }
+
+    const activeLine = scroller.querySelector<HTMLElement>(
       '[data-lyra-replacement-active="true"]',
     );
 
-    if (!scroller || !activeLine) {
+    if (!activeLine) {
       return;
     }
 
@@ -304,7 +321,7 @@ export function ContentApp() {
     }
 
     scroller.scrollTop = scrollTop;
-  }, [activeLineIndex, lyrics, replacementHost]);
+  }, [activeLineIndex, lyrics, playbackPositionMs, replacementHost]);
 
   useEffect(() => {
     return () => {
@@ -591,6 +608,21 @@ export function calculateCenteredScrollTop({
   const centeredTop = activeOffsetTop + activeHeight / 2 - containerHeight / 2;
 
   return Math.min(Math.max(0, centeredTop), maxScrollTop);
+}
+
+export function shouldResetScrollTopOnPlaybackReset({
+  previousPlaybackPositionMs,
+  playbackPositionMs,
+}: {
+  previousPlaybackPositionMs: number | null;
+  playbackPositionMs: number | null;
+}): boolean {
+  if (previousPlaybackPositionMs === null || playbackPositionMs === null) {
+    return false;
+  }
+
+  // Treat a large jump back to the song start as a playback reset, not a normal sync tick.
+  return previousPlaybackPositionMs >= 3_000 && playbackPositionMs <= 1_000;
 }
 
 export function createLyricsRequestKey(

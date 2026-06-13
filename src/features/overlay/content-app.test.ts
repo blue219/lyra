@@ -11,6 +11,7 @@ import {
   getSelectedPlaybackPositionMs,
   getSelectedLineIndex,
   getVisibleActiveLineIndex,
+  shouldResetScrollTopOnPlaybackReset,
   shouldClearSelectedLineState,
   keepReplacementLyricsInView,
   selectLyricsRequest,
@@ -385,5 +386,25 @@ describe('calculateCenteredScrollTop', () => {
         maxScrollTop: 900,
       }),
     ).toBe(900);
+  });
+});
+
+describe('shouldResetScrollTopOnPlaybackReset', () => {
+  test('resets to the top when playback jumps from later in the song back to the start', () => {
+    expect(
+      shouldResetScrollTopOnPlaybackReset({
+        previousPlaybackPositionMs: 92_000,
+        playbackPositionMs: 0,
+      }),
+    ).toBe(true);
+  });
+
+  test('does not reset to the top during normal forward playback updates', () => {
+    expect(
+      shouldResetScrollTopOnPlaybackReset({
+        previousPlaybackPositionMs: 12_000,
+        playbackPositionMs: 13_000,
+      }),
+    ).toBe(false);
   });
 });
