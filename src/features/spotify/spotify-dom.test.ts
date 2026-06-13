@@ -3,14 +3,17 @@
 import { describe, expect, test } from 'vitest';
 
 import {
+  hasUnsyncedSpotifyLyricsNotice,
   hasVisibleSpotifyLyrics,
   isSpotifyLyricsPage,
   markNativeSpotifyLyricsHidden,
+  clickSpotifyLyricLine,
   readCurrentTrackIdentity,
   readSpotifyLyricsPageContainer,
   readPlaybackPositionMs,
   readSpotifyLyricsContainer,
   readSpotifyLyricsSnapshot,
+  seekSpotifyPlaybackToMs,
 } from './spotify-dom';
 
 describe('readCurrentTrackIdentity', () => {
@@ -185,6 +188,115 @@ describe('readSpotifyLyricsSnapshot', () => {
         .querySelector('[data-testid="lyrics-line"]')
         ?.getAttribute('data-lyra-native-lyrics-hidden'),
     ).toBe('true');
+  });
+});
+
+describe('hasUnsyncedSpotifyLyricsNotice', () => {
+  test('detects the Spotify unsynced lyrics message', () => {
+    document.body.innerHTML = `
+      <main>
+        <p>These lyrics aren't synced to the song yet.</p>
+      </main>
+    `;
+
+    expect(hasUnsyncedSpotifyLyricsNotice(document)).toBe(true);
+  });
+
+  test('returns false when the unsynced lyrics message is absent', () => {
+    document.body.innerHTML = `
+      <main>
+        <p>Regular synced lyrics</p>
+      </main>
+    `;
+
+    expect(hasUnsyncedSpotifyLyricsNotice(document)).toBe(false);
+  });
+});
+
+describe('seekSpotifyPlaybackToMs', () => {
+  test('seeks a controllable media element to the requested time', () => {
+    document.body.innerHTML = '<audio></audio>';
+
+    expect(seekSpotifyPlaybackToMs(42_000, document)).toBe(true);
+    expect(document.querySelector('audio')?.currentTime).toBe(42);
+  });
+
+  test('prefers the Spotify playback progress input over a media element', () => {
+    const changedValues: string[] = [];
+    document.body.innerHTML = `
+      <audio></audio>
+      <span data-testid="playback-duration">3:00</span>
+      <div data-testid="playback-progressbar">
+        <input type="range" max="180000" value="0" />
+      </div>
+    `;
+
+    document.querySelector('input')?.addEventListener('change', (event) => {
+      changedValues.push((event.currentTarget as HTMLInputElement).value);
+    });
+
+    expect(seekSpotifyPlaybackToMs(45_000, document)).toBe(true);
+    expect(changedValues).toEqual(['45000']);
+    expect(document.querySelector('audio')?.currentTime).toBe(0);
+  });
+});
+
+describe('clickSpotifyLyricLine', () => {
+  test('clicks the matching visible Spotify lyric row by index', () => {
+    const clickedIndexes: number[] = [];
+    document.body.innerHTML = `
+      <section aria-label="Lyrics">
+        <div data-testid="lyrics-line">Hello</div>
+        <div data-testid="lyrics-line">World</div>
+      </section>
+    `;
+
+    document.querySelectorAll<HTMLElement>('[data-testid="lyrics-line"]').forEach(
+      (element, index) => {
+        element.addEventListener('click', () => {
+          clickedIndexes.push(index);
+        });
+      },
+    );
+
+    expect(clickSpotifyLyricLine(1, document)).toBe(true);
+    expect(clickedIndexes).toEqual([1]);
+  });
+
+  test('skips visible Spotify lyric rows that have no original text when matching indexes', () => {
+    const clickedTexts: string[] = [];
+    document.body.innerHTML = `
+      <section aria-label="Lyrics">
+        <div data-testid="lyrics-line">
+          <div></div>
+          <div data-lyra-inline-translation="true">离屏翻译</div>
+        </div>
+        <div data-testid="lyrics-line">
+          <div></div>
+        </div>
+        <div data-testid="lyrics-line">First real line</div>
+        <div data-testid="lyrics-line">Second real line</div>
+      </section>
+    `;
+
+    document.querySelectorAll<HTMLElement>('[data-testid="lyrics-line"]').forEach((element) => {
+      element.addEventListener('click', () => {
+        clickedTexts.push((element.textContent ?? '').trim());
+      });
+    });
+
+    expect(clickSpotifyLyricLine(0, document)).toBe(true);
+    expect(clickedTexts).toEqual(['First real line']);
+  });
+
+  test('returns false when the Spotify lyric row does not exist', () => {
+    document.body.innerHTML = `
+      <section aria-label="Lyrics">
+        <div data-testid="lyrics-line">Hello</div>
+      </section>
+    `;
+
+    expect(clickSpotifyLyricLine(2, document)).toBe(false);
   });
 });
 

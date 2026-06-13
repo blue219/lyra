@@ -7,11 +7,14 @@ import { findActiveLyricIndex } from '../lyrics/lyrics';
 import { requestLyrics, requestTranslatedLyrics } from '../lyrics/messages';
 import { defaultOverlaySettings, sanitizeOverlaySettings } from '../settings/settings';
 import {
+  clickSpotifyLyricLine,
+  hasUnsyncedSpotifyLyricsNotice,
   markNativeSpotifyLyricsHidden,
   readCurrentTrackIdentity,
   readPlaybackPositionMs,
   readSpotifyLyricsPageContainer,
   readSpotifyLyricsSnapshot,
+  seekSpotifyPlaybackToMs,
 } from '../spotify/spotify-dom';
 import { getExtensionApi } from '../../shared/extension-api';
 import type {
@@ -35,6 +38,34 @@ interface ActiveLineInput {
   lines: LyricLine[];
 }
 
+interface SelectedPlaybackPositionInput {
+  lyricsSource: LyricsResult['source'];
+  selectedLineIndex: number;
+  lines: LyricLine[];
+}
+
+interface VisibleActiveLineInput {
+  selectedLineIndex: number | null;
+  syncedActiveLineIndex: number;
+}
+
+interface SelectedLineState {
+  index: number;
+  lyricsSource: LyricsResult['source'];
+  syncedActiveLineIndexAtSelection: number;
+}
+
+interface InitialSelectedLineStateInput {
+  selectedLineIndex: number;
+  lyricsSource: LyricsResult['source'];
+  syncedActiveLineIndex: number;
+}
+
+interface ShouldClearSelectedLineStateInput {
+  selectedLineState: SelectedLineState | null;
+  syncedActiveLineIndex: number;
+}
+
 const emptyLyricsResult: LyricsResult = {
   status: 'unavailable',
   lines: [],
@@ -51,19 +82,36 @@ export function ContentApp() {
   const [spotifyLyricsLines, setSpotifyLyricsLines] = useState<LyricLine[]>([]);
   const [currentTrack, setCurrentTrack] = useState<TrackIdentity | null>(null);
   const [playbackPositionMs, setPlaybackPositionMs] = useState<number | null>(null);
+  const [hasUnsyncedSpotifyLyrics, setHasUnsyncedSpotifyLyrics] = useState(false);
   const [settings, setSettings] = useState<OverlaySettings>(defaultOverlaySettings);
+  const [settingsLoaded, setSettingsLoaded] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settingsAnchor, setSettingsAnchor] = useState<SettingsAnchor | null>(null);
   const [replacementHost, setReplacementHost] = useState<HTMLElement | null>(null);
   const [lyricsDomVersion, setLyricsDomVersion] = useState(0);
+  const [selectedLineState, setSelectedLineState] = useState<SelectedLineState | null>(
+    null,
+  );
 
-  const lyricsSelection = selectLyricsRequest(spotifyLyricsLines, currentTrack);
-  const lyricsRequestKey = createLyricsRequestKey(lyricsSelection, settings.targetLanguage);
-  const activeLineIndex = getReplacementActiveLineIndex({
+  const lyricsSelection = selectLyricsRequest(
+    spotifyLyricsLines,
+    currentTrack,
+    hasUnsyncedSpotifyLyrics,
+  );
+  const lyricsRequestKey = createLyricsRequestKey(
+    lyricsSelection,
+    settings.targetLanguage,
+    settingsLoaded,
+  );
+  const syncedActiveLineIndex = getReplacementActiveLineIndex({
     lyricsSource: lyrics.source,
     spotifyActiveLineIndex,
     playbackPositionMs,
     lines: lyrics.lines,
+  });
+  const activeLineIndex = getVisibleActiveLineIndex({
+    selectedLineIndex: getSelectedLineIndex(selectedLineState),
+    syncedActiveLineIndex,
   });
 
   useEffect(() => {
@@ -71,6 +119,7 @@ export function ContentApp() {
 
     if (!extensionApi?.storage?.local) {
       setSettings(defaultOverlaySettings);
+      setSettingsLoaded(true);
       return () => {
         isCancelled = true;
       };
@@ -88,10 +137,12 @@ export function ContentApp() {
             storedValue[overlaySettingsStorageKey] as Partial<OverlaySettings> | undefined,
           ),
         );
+        setSettingsLoaded(true);
       })
       .catch(() => {
         if (!isCancelled) {
           setSettings(defaultOverlaySettings);
+          setSettingsLoaded(true);
         }
       });
 
@@ -121,6 +172,7 @@ export function ContentApp() {
       });
       setCurrentTrack(readCurrentTrackIdentity());
       setPlaybackPositionMs(readPlaybackPositionMs());
+      setHasUnsyncedSpotifyLyrics(hasUnsyncedSpotifyLyricsNotice());
       setLyricsDomVersion((version) => version + 1);
     };
 
@@ -134,6 +186,8 @@ export function ContentApp() {
   }, []);
 
   useEffect(() => {
+    setSelectedLineState(null);
+
     if (lyricsSelection.type === 'none') {
       setLyrics(emptyLyricsResult);
       setPhase('waiting-track');
@@ -174,6 +228,19 @@ export function ContentApp() {
       isCancelled = true;
     };
   }, [lyricsRequestKey]);
+
+  useEffect(() => {
+    if (
+      !shouldClearSelectedLineState({
+        selectedLineState,
+        syncedActiveLineIndex,
+      })
+    ) {
+      return;
+    }
+
+    setSelectedLineState(null);
+  }, [selectedLineState, syncedActiveLineIndex]);
 
   useEffect(() => {
     const shouldHideNativeLyrics =
@@ -247,6 +314,42 @@ export function ContentApp() {
     });
   }
 
+  function selectReplacementLine(index: number) {
+    if (!lyrics.lines[index]) {
+      return;
+    }
+
+    setSelectedLineState(
+      getInitialSelectedLineState({
+        selectedLineIndex: index,
+        lyricsSource: lyrics.source,
+        syncedActiveLineIndex,
+      }),
+    );
+    keepReplacementLyricsInView(replacementHost);
+
+    if (lyrics.source === 'spotify') {
+      clickSpotifyLyricLine(index);
+      window.setTimeout(() => {
+        keepReplacementLyricsInView(replacementHost);
+      }, 0);
+      return;
+    }
+
+    const selectedPlaybackPositionMs = getSelectedPlaybackPositionMs({
+      lyricsSource: lyrics.source,
+      selectedLineIndex: index,
+      lines: lyrics.lines,
+    });
+
+    if (selectedPlaybackPositionMs === null) {
+      return;
+    }
+
+    setPlaybackPositionMs(selectedPlaybackPositionMs);
+    seekSpotifyPlaybackToMs(selectedPlaybackPositionMs);
+  }
+
   if (!replacementHost && lyricsSelection.type === 'none') {
     return null;
   }
@@ -259,6 +362,7 @@ export function ContentApp() {
               activeLineIndex={activeLineIndex}
               fontSize={settings.fontSize}
               lyrics={phase === 'loading' ? lyrics : lyrics}
+              onLineSelect={selectReplacementLine}
               targetLanguage={settings.targetLanguage}
             />,
             replacementHost,
@@ -353,8 +457,12 @@ export function shouldMountLyricsExperience(
 export function selectLyricsRequest(
   spotifyLyricsLines: LyricLine[],
   track: TrackIdentity | null,
+  hasUnsyncedSpotifyLyrics: boolean,
 ): LyricsRequestSelection {
-  if (shouldRequestVisibleSpotifyLyrics(spotifyLyricsLines)) {
+  if (
+    shouldRequestVisibleSpotifyLyrics(spotifyLyricsLines) &&
+    (!hasUnsyncedSpotifyLyrics || !track)
+  ) {
     return {
       type: 'spotify',
       lines: spotifyLyricsLines,
@@ -388,6 +496,67 @@ export function getReplacementActiveLineIndex({
   return -1;
 }
 
+export function getSelectedPlaybackPositionMs({
+  lyricsSource,
+  selectedLineIndex,
+  lines,
+}: SelectedPlaybackPositionInput): number | null {
+  if (lyricsSource !== 'lrclib') {
+    return null;
+  }
+
+  return lines[selectedLineIndex]?.timeMs ?? null;
+}
+
+export function getVisibleActiveLineIndex({
+  selectedLineIndex,
+  syncedActiveLineIndex,
+}: VisibleActiveLineInput): number {
+  return selectedLineIndex ?? syncedActiveLineIndex;
+}
+
+export function getInitialSelectedLineState({
+  selectedLineIndex,
+  lyricsSource,
+  syncedActiveLineIndex,
+}: InitialSelectedLineStateInput): SelectedLineState {
+  return {
+    index: selectedLineIndex,
+    lyricsSource,
+    syncedActiveLineIndexAtSelection: syncedActiveLineIndex,
+  };
+}
+
+export function getSelectedLineIndex(
+  selectedLineState: SelectedLineState | null,
+): number | null {
+  return selectedLineState?.index ?? null;
+}
+
+export function shouldClearSelectedLineState({
+  selectedLineState,
+  syncedActiveLineIndex,
+}: ShouldClearSelectedLineStateInput): boolean {
+  if (!selectedLineState) {
+    return false;
+  }
+
+  if (selectedLineState.lyricsSource === 'lrclib') {
+    return syncedActiveLineIndex === selectedLineState.index;
+  }
+
+  return (
+    syncedActiveLineIndex !== -1 &&
+    syncedActiveLineIndex !== selectedLineState.syncedActiveLineIndexAtSelection
+  );
+}
+
+export function keepReplacementLyricsInView(replacementHost: HTMLElement | null) {
+  replacementHost?.scrollIntoView({
+    block: 'start',
+  });
+}
+
 export function calculateCenteredScrollTop({
   activeOffsetTop,
   activeHeight,
@@ -404,10 +573,15 @@ export function calculateCenteredScrollTop({
   return Math.min(Math.max(0, centeredTop), maxScrollTop);
 }
 
-function createLyricsRequestKey(
+export function createLyricsRequestKey(
   selection: LyricsRequestSelection,
   targetLanguage: string,
+  settingsLoaded: boolean,
 ): string {
+  if (!settingsLoaded) {
+    return 'pending-settings';
+  }
+
   if (selection.type === 'spotify') {
     return ['spotify', targetLanguage, createLyricsKey(selection.lines)].join('__');
   }

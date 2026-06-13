@@ -112,6 +112,16 @@ export function hasVisibleSpotifyLyrics(rootDocument: Document = document): bool
   return readVisibleSpotifyLyricEntries(rootDocument).length > 0;
 }
 
+export function hasUnsyncedSpotifyLyricsNotice(
+  rootDocument: Document = document,
+): boolean {
+  return Array.from(rootDocument.querySelectorAll<HTMLElement>('p, span, div'))
+    .filter(isVisibleElement)
+    .some((element) =>
+      element.textContent?.trim() === "These lyrics aren't synced to the song yet.",
+    );
+}
+
 export function readVisibleSpotifyLyricElements(
   rootDocument: Document = document,
 ): HTMLElement[] {
@@ -168,6 +178,34 @@ export function markNativeSpotifyLyricsHidden(
 
     element.removeAttribute(nativeLyricsHiddenAttribute);
   });
+}
+
+export function seekSpotifyPlaybackToMs(
+  timeMs: number,
+  rootDocument: Document = document,
+): boolean {
+  if (seekProgressInputToMs(timeMs, rootDocument)) {
+    return true;
+  }
+
+  return seekMediaElementToMs(timeMs, rootDocument);
+}
+
+export function clickSpotifyLyricLine(
+  lineIndex: number,
+  rootDocument: Document = document,
+): boolean {
+  const lyricElement = readVisibleSpotifyLyricEntries(rootDocument)[lineIndex]?.element;
+
+  if (!lyricElement) {
+    return false;
+  }
+
+  // Mirror a direct user click so Spotify can run its own lyric-seek behavior.
+  lyricElement.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+  lyricElement.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+  lyricElement.click();
+  return true;
 }
 
 export function isSpotifyLyricsPage(url = window.location.href): boolean {
@@ -280,6 +318,49 @@ export function readPlaybackPositionMs(
   }
 
   return null;
+}
+
+function seekMediaElementToMs(timeMs: number, rootDocument: Document): boolean {
+  const media = rootDocument.querySelector<HTMLMediaElement>('audio, video');
+
+  if (!media) {
+    return false;
+  }
+
+  try {
+    media.currentTime = timeMs / 1000;
+    media.dispatchEvent(new Event('timeupdate', { bubbles: true }));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function seekProgressInputToMs(timeMs: number, rootDocument: Document): boolean {
+  const durationSeconds = readPlaybackDurationSeconds(rootDocument);
+  const progressInput = rootDocument.querySelector<HTMLInputElement>(
+    [
+      '[data-testid="playback-progressbar"] input[type="range"]',
+      'input[type="range"][aria-label*="progress" i]',
+      'input[type="range"][aria-label*="playback" i]',
+    ].join(','),
+  );
+
+  if (!durationSeconds || !progressInput) {
+    return false;
+  }
+
+  const max = Number(progressInput.max || '100');
+  const nextValue = String(Math.min(Math.max(0, timeMs / 1000 / durationSeconds), 1) * max);
+  const valueSetter = Object.getOwnPropertyDescriptor(
+    HTMLInputElement.prototype,
+    'value',
+  )?.set;
+
+  valueSetter?.call(progressInput, nextValue);
+  progressInput.dispatchEvent(new Event('input', { bubbles: true }));
+  progressInput.dispatchEvent(new Event('change', { bubbles: true }));
+  return true;
 }
 
 function readPlaybackDurationSeconds(rootDocument: Document): number | undefined {

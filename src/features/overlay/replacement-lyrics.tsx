@@ -5,6 +5,7 @@ interface ReplacementLyricsProps {
   activeLineIndex: number;
   fontSize: OverlaySettings['fontSize'];
   lyrics: LyricsResult;
+  onLineSelect?: (index: number) => void;
   targetLanguage: string;
 }
 
@@ -20,12 +21,23 @@ const translationFontSizes: Record<OverlaySettings['fontSize'], string> = {
   lg: '1.45rem',
 };
 
+function getLyricsSourceLabel(lyrics: LyricsResult): string {
+  if (lyrics.status === 'unavailable' || lyrics.lines.length === 0) {
+    return 'No lyrics available';
+  }
+
+  return lyrics.source === 'spotify' ? 'Source: Native' : 'Source: LRCLIB';
+}
+
 export function ReplacementLyrics({
   activeLineIndex,
   fontSize,
   lyrics,
+  onLineSelect,
   targetLanguage,
 }: ReplacementLyricsProps) {
+  const sourceLabel = getLyricsSourceLabel(lyrics);
+
   if (lyrics.status === 'unavailable' || lyrics.lines.length === 0) {
     return (
       <section
@@ -44,16 +56,37 @@ export function ReplacementLyrics({
           scrollBehavior: 'smooth',
         }}
       >
-        <p
+        <div
           style={{
-            color: 'rgba(255, 255, 255, 0.8)',
-            fontSize: '1.5rem',
-            fontWeight: 900,
-            margin: 0,
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '16px',
+            width: '100%',
           }}
         >
-          No synced lyrics available
-        </p>
+          <p
+            style={{
+              color: 'rgba(255, 255, 255, 0.45)',
+              fontSize: '0.78rem',
+              fontWeight: 700,
+              letterSpacing: '0.08em',
+              margin: 0,
+              textTransform: 'uppercase',
+            }}
+          >
+            {sourceLabel}
+          </p>
+          <p
+            style={{
+              color: 'rgba(255, 255, 255, 0.8)',
+              fontSize: '1.5rem',
+              fontWeight: 900,
+              margin: 0,
+            }}
+          >
+            No synced lyrics available
+          </p>
+        </div>
       </section>
     );
   }
@@ -70,6 +103,8 @@ export function ReplacementLyrics({
         overflowY: 'auto',
         padding: '64px 48px',
         scrollBehavior: 'smooth',
+        userSelect: 'none',
+        WebkitUserSelect: 'none',
         width: '100%',
       }}
     >
@@ -82,6 +117,18 @@ export function ReplacementLyrics({
           maxWidth: '980px',
         }}
       >
+        <p
+          style={{
+            color: 'rgba(255, 255, 255, 0.45)',
+            fontSize: '0.78rem',
+            fontWeight: 700,
+            letterSpacing: '0.08em',
+            margin: 0,
+            textTransform: 'uppercase',
+          }}
+        >
+          {sourceLabel}
+        </p>
         {lyrics.lines.map((line, index) => {
           const translatedText = getLineTranslationForLanguage(line, targetLanguage);
           const isActive = index === activeLineIndex;
@@ -91,9 +138,21 @@ export function ReplacementLyrics({
               key={`${line.timeMs}-${index}-${line.original}`}
               className="lyra-replacement-line"
               data-lyra-replacement-active={isActive ? 'true' : undefined}
+              role="button"
+              tabIndex={0}
               style={{
                 color: isActive ? '#ffffff' : 'rgba(255, 255, 255, 0.45)',
+                cursor: 'pointer',
                 transition: 'color 200ms ease, opacity 200ms ease',
+              }}
+              onClick={() => onLineSelect?.(index)}
+              onKeyDown={(event) => {
+                if (event.key !== 'Enter' && event.key !== ' ') {
+                  return;
+                }
+
+                event.preventDefault();
+                onLineSelect?.(index);
               }}
             >
               <p

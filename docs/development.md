@@ -2,7 +2,7 @@
 
 ## MVP behavior
 
-Lyra injects into `https://open.spotify.com/*` and renders its own lyrics view inside Spotify's lyrics page. When Spotify lyrics are available, Lyra keeps Spotify's native lyrics DOM as the preferred source for visible lyric text and active-line sync, visually hides the native text, translates those lines through the configured LibreTranslate backend, and renders original plus translated lines in the same page area. If Spotify lyrics are not available, Lyra falls back to synced LRCLIB lyrics for the current track.
+Lyra injects into `https://open.spotify.com/*` and renders its own lyrics view inside Spotify's lyrics page. When Spotify lyrics are available and synced, Lyra keeps Spotify's native lyrics DOM as the preferred source for visible lyric text and active-line sync, visually hides the native text, translates those lines through the configured LibreTranslate backend, and renders original plus translated lines in the same page area. If Spotify lyrics are unavailable or Spotify marks them as unsynced, Lyra falls back to synced LRCLIB lyrics for the current track.
 
 The current translation service supports English and Simplified Chinese. If translation is unavailable, missing an API key, or fails, Spotify's original lyrics remain unchanged.
 
@@ -22,10 +22,15 @@ The current translation service supports English and Simplified Chinese. If tran
 
 - Lyra lyrics render only on Spotify Web Player's lyrics page.
 - Visible Spotify lyrics are the preferred source and are translated through LibreTranslate.
+- Spotify lyrics that show the "These lyrics aren't synced to the song yet." notice fall back to LRCLIB when track metadata is available.
 - Native Spotify lyric text is visually hidden while Lyra-rendered original and translated lines appear in the same lyrics page area.
+- Lyra shows a small English source label above the lyrics: `Source: Native`, `Source: LRCLIB`, or `No lyrics available`.
 - Lyra's replacement lyrics area can be manually scrolled and automatically centers the active lyric line during playback.
+- Lyra replacement lyric lines show a pointer cursor and can be clicked to switch Lyra's active line. LRCLIB fallback lines also seek playback by their synced timestamp.
+- After lyric-line clicks, Lyra returns highlight control to synced playback and keeps the replacement lyrics view in front of the native Spotify page.
 - The Lyra settings icon appears in the top-right corner when Spotify lyrics are visible.
 - When Spotify lyrics are not available but the current track is readable, Lyra requests synced LRCLIB fallback lyrics.
+- Lyra waits for persisted settings before the first lyrics request so LRCLIB fallback uses the saved target language immediately.
 - Monolingual, translated, and unavailable lyric states remain readable.
 - English and Simplified Chinese target language settings persist across refresh.
 - Font size settings persist across refresh.

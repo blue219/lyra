@@ -1,8 +1,17 @@
+// @vitest-environment jsdom
+
 import { describe, expect, test } from 'vitest';
 
 import {
   calculateCenteredScrollTop,
+  createLyricsRequestKey,
+  getInitialSelectedLineState,
   getReplacementActiveLineIndex,
+  getSelectedPlaybackPositionMs,
+  getSelectedLineIndex,
+  getVisibleActiveLineIndex,
+  shouldClearSelectedLineState,
+  keepReplacementLyricsInView,
   selectLyricsRequest,
   shouldMountLyricsExperience,
   shouldRequestVisibleSpotifyLyrics,
@@ -38,21 +47,63 @@ describe('shouldMountLyricsExperience', () => {
 
 describe('selectLyricsRequest', () => {
   test('uses Spotify lyric rows before LRCLIB fallback', () => {
-    expect(selectLyricsRequest(spotifyLines, track)).toEqual({
+    expect(selectLyricsRequest(spotifyLines, track, false)).toEqual({
       type: 'spotify',
       lines: spotifyLines,
     });
   });
 
+  test('prefers LRCLIB when Spotify lyrics are visible but unsynced', () => {
+    expect(selectLyricsRequest(spotifyLines, track, true)).toEqual({
+      type: 'lrclib',
+      track,
+    });
+  });
+
   test('uses LRCLIB fallback when Spotify lyrics are missing and the track is known', () => {
-    expect(selectLyricsRequest([], track)).toEqual({
+    expect(selectLyricsRequest([], track, false)).toEqual({
       type: 'lrclib',
       track,
     });
   });
 
   test('returns none when neither Spotify lyrics nor the track are known', () => {
-    expect(selectLyricsRequest([], null)).toEqual({ type: 'none' });
+    expect(selectLyricsRequest([], null, false)).toEqual({ type: 'none' });
+  });
+
+  test('keeps Spotify lyrics when they are unsynced and no track metadata is available', () => {
+    expect(selectLyricsRequest(spotifyLines, null, true)).toEqual({
+      type: 'spotify',
+      lines: spotifyLines,
+    });
+  });
+});
+
+describe('createLyricsRequestKey', () => {
+  test('defers lyrics requests until settings finish loading', () => {
+    expect(
+      createLyricsRequestKey(
+        {
+          type: 'lrclib',
+          track,
+        },
+        'zh-CN',
+        false,
+      ),
+    ).toBe('pending-settings');
+  });
+
+  test('uses the resolved settings language after settings finish loading', () => {
+    expect(
+      createLyricsRequestKey(
+        {
+          type: 'lrclib',
+          track,
+        },
+        'zh-CN',
+        true,
+      ),
+    ).toBe('lrclib__zh-CN__Stand By Me__Ben E. King____180');
   });
 });
 
@@ -81,6 +132,105 @@ describe('getReplacementActiveLineIndex', () => {
         ],
       }),
     ).toBe(1);
+  });
+});
+
+describe('getSelectedPlaybackPositionMs', () => {
+  test('uses the selected LRCLIB line time for immediate highlight updates', () => {
+    expect(
+      getSelectedPlaybackPositionMs({
+        lyricsSource: 'lrclib',
+        selectedLineIndex: 1,
+        lines: [
+          { timeMs: 0, original: 'First' },
+          { timeMs: 4_000, original: 'Second' },
+        ],
+      }),
+    ).toBe(4_000);
+  });
+
+  test('does not invent playback time for Spotify-sourced lyrics', () => {
+    expect(
+      getSelectedPlaybackPositionMs({
+        lyricsSource: 'spotify',
+        selectedLineIndex: 1,
+        lines: [
+          { timeMs: 0, original: 'First' },
+          { timeMs: 1, original: 'Second' },
+        ],
+      }),
+    ).toBeNull();
+  });
+});
+
+describe('getVisibleActiveLineIndex', () => {
+  test('uses the selected Lyra line instead of the synced Spotify line', () => {
+    expect(
+      getVisibleActiveLineIndex({
+        selectedLineIndex: 5,
+        syncedActiveLineIndex: 2,
+      }),
+    ).toBe(5);
+  });
+
+  test('falls back to the synced active line when no Lyra line is selected', () => {
+    expect(
+      getVisibleActiveLineIndex({
+        selectedLineIndex: null,
+        syncedActiveLineIndex: 2,
+      }),
+    ).toBe(2);
+  });
+});
+
+describe('selected line state', () => {
+  test('clears the temporary LRCLIB selection once synced playback reaches the selected line', () => {
+    const state = getInitialSelectedLineState({
+      selectedLineIndex: 4,
+      lyricsSource: 'lrclib',
+      syncedActiveLineIndex: 1,
+    });
+
+    expect(
+      shouldClearSelectedLineState({
+        selectedLineState: state,
+        syncedActiveLineIndex: 4,
+      }),
+    ).toBe(true);
+  });
+
+  test('clears the temporary Spotify selection once Spotify active sync moves away from the original line', () => {
+    const state = getInitialSelectedLineState({
+      selectedLineIndex: 6,
+      lyricsSource: 'spotify',
+      syncedActiveLineIndex: 2,
+    });
+
+    expect(
+      shouldClearSelectedLineState({
+        selectedLineState: state,
+        syncedActiveLineIndex: 6,
+      }),
+    ).toBe(true);
+  });
+
+  test('keeps using synced highlighting when there is no temporary selection', () => {
+    expect(getSelectedLineIndex(null)).toBeNull();
+  });
+});
+
+describe('keepReplacementLyricsInView', () => {
+  test('scrolls the replacement host back into view after lyric seeking', () => {
+    const host = document.createElement('div');
+    let called = false;
+
+    host.scrollIntoView = () => {
+      called = true;
+    };
+
+    keepReplacementLyricsInView(host);
+
+    expect(called).toBe(true);
   });
 });
 
