@@ -63,6 +63,19 @@ const skeletonAnimationStyles = `
       transform: translateX(460%);
     }
   }
+
+  @keyframes lyra-loading-pulse {
+    0%,
+    100% {
+      opacity: 0.72;
+      transform: scaleY(0.82);
+    }
+
+    50% {
+      opacity: 1;
+      transform: scaleY(1);
+    }
+  }
 `;
 
 function getSkeletonLineStyle(height: string, width: string) {
@@ -119,31 +132,53 @@ function renderStatusLabel(label: string, phase: OverlayPhase) {
 
   return (
     <div
+      className="lyra-loading-status"
       style={{
         alignItems: 'center',
         display: 'flex',
+        flexWrap: 'wrap',
         gap: '12px',
       }}
     >
-      <span
+      <div
         aria-hidden="true"
+        className="lyra-loading-mark"
         style={{
-          color: '#1ed760',
-          fontSize: '1.1rem',
-          fontWeight: 900,
-          letterSpacing: '0.22em',
-          lineHeight: 1,
+          alignItems: 'center',
+          display: 'flex',
+          filter: 'drop-shadow(0 0 18px rgba(30, 215, 96, 0.22))',
+          gap: '6px',
+          paddingLeft: '2px',
+          paddingRight: '2px',
         }}
       >
-        ...
-      </span>
+        {[8, 18, 30, 18, 8].map((height, index) => (
+          <span
+            key={`loading-mark-bar-${height}-${index}`}
+            className="lyra-loading-mark-bar"
+            style={{
+              animation: `lyra-loading-pulse 1.4s ease-in-out ${index * 120}ms infinite`,
+              background:
+                'linear-gradient(180deg, rgba(88, 255, 141, 1) 0%, rgba(30, 215, 96, 0.96) 100%)',
+              borderRadius: '9999px',
+              boxShadow: '0 0 18px rgba(30, 215, 96, 0.28)',
+              display: 'block',
+              height: `${height}px`,
+              transformOrigin: 'center',
+              width: index === 2 ? '10px' : index === 1 || index === 3 ? '8px' : '6px',
+            }}
+          />
+        ))}
+      </div>
       <p
         style={{
-          color: 'rgba(255, 255, 255, 0.62)',
+          color: 'rgba(255, 255, 255, 0.94)',
           fontSize: '0.96rem',
           fontWeight: 500,
           letterSpacing: '0',
+          lineHeight: 1.2,
           margin: 0,
+          textTransform: 'none',
         }}
       >
         {label}

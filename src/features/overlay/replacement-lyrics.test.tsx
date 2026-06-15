@@ -165,6 +165,17 @@ describe('ReplacementLyrics', () => {
     );
 
     expect(html).toContain('loading lyrics ...');
+    expect(html).toContain('lyra-loading-status');
+    expect(html).toContain('lyra-loading-mark');
+    expect(html).toContain('lyra-loading-mark-bar');
+    expect(html).toContain('font-size:0.96rem');
+    expect(html).toContain('height:8px');
+    expect(html).toContain('height:18px');
+    expect(html).toContain('height:30px');
+    expect(html).toContain('width:6px');
+    expect(html).toContain('width:8px');
+    expect(html).toContain('width:10px');
+    expect(html).toContain('text-transform:none');
     expect((html.match(/lyra-skeleton-group/g) ?? []).length).toBe(5);
     expect((html.match(/class=\"lyra-skeleton-line\"/g) ?? []).length).toBe(5);
     expect((html.match(/class=\"lyra-skeleton-line lyra-skeleton-line--translation\"/g) ?? []).length).toBe(5);
@@ -200,6 +211,17 @@ describe('ReplacementLyrics', () => {
     );
 
     expect(html).toContain('loading translation ...');
+    expect(html).toContain('lyra-loading-status');
+    expect(html).toContain('lyra-loading-mark');
+    expect(html).toContain('lyra-loading-mark-bar');
+    expect(html).toContain('font-size:0.96rem');
+    expect(html).toContain('height:8px');
+    expect(html).toContain('height:18px');
+    expect(html).toContain('height:30px');
+    expect(html).toContain('width:6px');
+    expect(html).toContain('width:8px');
+    expect(html).toContain('width:10px');
+    expect(html).toContain('text-transform:none');
     expect(html).toContain('Hello');
     expect(html).toContain('World');
     expect(html).toContain('lyra-skeleton-line lyra-skeleton-line--translation');
