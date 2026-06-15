@@ -1,6 +1,7 @@
 import { getLineTranslationForLanguage } from '../lyrics/lyrics';
 import type { LyricsResult, OverlaySettings } from '../../shared/types';
-import type { OverlayPhase } from './content-app';
+import type { OverlayPhase } from './lyrics-flow';
+import type { CSSProperties, ReactNode } from 'react';
 
 interface ReplacementLyricsProps {
   activeLineIndex: number;
@@ -46,6 +47,8 @@ function getStatusLabel(phase: OverlayPhase, lyrics: LyricsResult): string {
 const loadingSkeletonGroupCount = 5;
 const lyricsContentMaxWidth = '1024px';
 const lyricsHorizontalPadding = 'clamp(20px, 4vw, 48px)';
+const defaultLyricsPadding = `64px ${lyricsHorizontalPadding}`;
+const loadingLyricsPadding = `24px ${lyricsHorizontalPadding} 64px`;
 const skeletonOriginalWidth = '66.6667%';
 const skeletonTranslationWidth = '33.3333%';
 const skeletonHighlightGradient =
@@ -90,20 +93,24 @@ function getSkeletonBeamStyle() {
   } as const;
 }
 
+function getStatusTextStyle(): CSSProperties {
+  return {
+    color: 'rgba(255, 255, 255, 0.45)',
+    fontSize: '0.78rem',
+    fontWeight: 700,
+    letterSpacing: '0.08em',
+    margin: 0,
+    textTransform: 'uppercase',
+  };
+}
+
 function renderStatusLabel(label: string, phase: OverlayPhase) {
   const isLoading = phase === 'loading-lyrics' || phase === 'loading-translation';
 
   if (!isLoading) {
     return (
       <p
-        style={{
-          color: 'rgba(255, 255, 255, 0.45)',
-          fontSize: '0.78rem',
-          fontWeight: 700,
-          letterSpacing: '0.08em',
-          margin: 0,
-          textTransform: 'uppercase',
-        }}
+        style={getStatusTextStyle()}
       >
         {label}
       </p>
@@ -149,6 +156,54 @@ function renderSkeletonAnimationStyle() {
   return <style>{skeletonAnimationStyles}</style>;
 }
 
+function ReplacementLyricsFrame({
+  children,
+  contentGap,
+  padding,
+  selectable = false,
+}: {
+  children: ReactNode;
+  contentGap: string;
+  padding: string;
+  selectable?: boolean;
+}) {
+  return (
+    <section
+      className="lyra-replacement-lyrics"
+      data-lyra-replacement-lyrics="true"
+      data-lyra-replacement-scroll="true"
+      style={{
+        boxSizing: 'border-box',
+        color: '#ffffff',
+        height: 'calc(100vh - 96px)',
+        overflowY: 'auto',
+        padding,
+        scrollBehavior: 'smooth',
+        width: '100%',
+        ...(selectable
+          ? {
+              userSelect: 'none',
+              WebkitUserSelect: 'none',
+            }
+          : null),
+      }}
+    >
+      <div
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          gap: contentGap,
+          margin: '0 auto',
+          maxWidth: lyricsContentMaxWidth,
+          width: '100%',
+        }}
+      >
+        {children}
+      </div>
+    </section>
+  );
+}
+
 export function ReplacementLyrics({
   activeLineIndex,
   fontSize,
@@ -161,70 +216,46 @@ export function ReplacementLyrics({
 
   if (phase === 'loading-lyrics') {
     return (
-      <section
-        className="lyra-replacement-lyrics"
-        data-lyra-replacement-lyrics="true"
-        data-lyra-replacement-scroll="true"
-        style={{
-          boxSizing: 'border-box',
-          color: '#ffffff',
-          height: 'calc(100vh - 96px)',
-          overflowY: 'auto',
-          padding: `24px ${lyricsHorizontalPadding} 64px`,
-          scrollBehavior: 'smooth',
-          width: '100%',
-        }}
-      >
+      <ReplacementLyricsFrame contentGap="16px" padding={loadingLyricsPadding}>
+        {renderSkeletonAnimationStyle()}
+        {renderStatusLabel(sourceLabel, phase)}
         <div
           style={{
             display: 'flex',
             flexDirection: 'column',
-            gap: '16px',
-            margin: '0 auto',
-            maxWidth: lyricsContentMaxWidth,
-            width: '100%',
+            gap: '24px',
           }}
         >
-          {renderSkeletonAnimationStyle()}
-          {renderStatusLabel(sourceLabel, phase)}
-          <div
-            style={{
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '24px',
-            }}
-          >
-            {Array.from({ length: loadingSkeletonGroupCount }, (_, index) => (
+          {Array.from({ length: loadingSkeletonGroupCount }, (_, index) => (
+            <div
+              key={`skeleton-group-${index}`}
+              className="lyra-skeleton-group"
+              style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}
+            >
               <div
-                key={`skeleton-group-${index}`}
-                className="lyra-skeleton-group"
-                style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}
+                className="lyra-skeleton-line"
+                style={getSkeletonLineStyle('16px', skeletonOriginalWidth)}
               >
-                <div
-                  className="lyra-skeleton-line"
-                  style={getSkeletonLineStyle('16px', skeletonOriginalWidth)}
-                >
-                  <span
-                    aria-hidden="true"
-                    className="lyra-skeleton-beam"
-                    style={getSkeletonBeamStyle()}
-                  />
-                </div>
-                <div
-                  className="lyra-skeleton-line lyra-skeleton-line--translation"
-                  style={getSkeletonLineStyle('14px', skeletonTranslationWidth)}
-                >
-                  <span
-                    aria-hidden="true"
-                    className="lyra-skeleton-beam"
-                    style={getSkeletonBeamStyle()}
-                  />
-                </div>
+                <span
+                  aria-hidden="true"
+                  className="lyra-skeleton-beam"
+                  style={getSkeletonBeamStyle()}
+                />
               </div>
-            ))}
-          </div>
+              <div
+                className="lyra-skeleton-line lyra-skeleton-line--translation"
+                style={getSkeletonLineStyle('14px', skeletonTranslationWidth)}
+              >
+                <span
+                  aria-hidden="true"
+                  className="lyra-skeleton-beam"
+                  style={getSkeletonBeamStyle()}
+                />
+              </div>
+            </div>
+          ))}
         </div>
-      </section>
+      </ReplacementLyricsFrame>
     );
   }
 
@@ -235,145 +266,85 @@ export function ReplacementLyrics({
     lyrics.lines.length === 0
   ) {
     return (
-      <section
-        className="lyra-replacement-lyrics"
-        data-lyra-replacement-lyrics="true"
-        data-lyra-replacement-scroll="true"
-        style={{
-          boxSizing: 'border-box',
-          color: '#ffffff',
-          height: 'calc(100vh - 96px)',
-          overflowY: 'auto',
-          padding: `64px ${lyricsHorizontalPadding}`,
-          scrollBehavior: 'smooth',
-        }}
-      >
-        <div
-          style={{
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '16px',
-            margin: '0 auto',
-            maxWidth: lyricsContentMaxWidth,
-            width: '100%',
-          }}
-        >
-          <p
-            style={{
-              color: 'rgba(255, 255, 255, 0.45)',
-              fontSize: '0.78rem',
-              fontWeight: 700,
-              letterSpacing: '0.08em',
-              margin: 0,
-              textTransform: 'uppercase',
-            }}
-          >
-            {sourceLabel}
-          </p>
-        </div>
-      </section>
+      <ReplacementLyricsFrame contentGap="16px" padding={defaultLyricsPadding}>
+        <p style={getStatusTextStyle()}>{sourceLabel}</p>
+      </ReplacementLyricsFrame>
     );
   }
 
   return (
-    <section
-      className="lyra-replacement-lyrics"
-      data-lyra-replacement-lyrics="true"
-      data-lyra-replacement-scroll="true"
-      style={{
-        boxSizing: 'border-box',
-        color: '#ffffff',
-        height: 'calc(100vh - 96px)',
-        overflowY: 'auto',
-        padding: `64px ${lyricsHorizontalPadding}`,
-        scrollBehavior: 'smooth',
-        userSelect: 'none',
-        WebkitUserSelect: 'none',
-        width: '100%',
-      }}
-    >
-      <div
-        style={{
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '32px',
-          margin: '0 auto',
-          maxWidth: lyricsContentMaxWidth,
-          width: '100%',
-        }}
-      >
-        {phase === 'loading-translation' ? renderSkeletonAnimationStyle() : null}
-        {renderStatusLabel(sourceLabel, phase)}
-        {lyrics.lines.map((line, index) => {
-          const translatedText = getLineTranslationForLanguage(line, targetLanguage);
-          const isActive = index === activeLineIndex;
+    <ReplacementLyricsFrame contentGap="32px" padding={defaultLyricsPadding} selectable>
+      {phase === 'loading-translation' ? renderSkeletonAnimationStyle() : null}
+      {renderStatusLabel(sourceLabel, phase)}
+      {lyrics.lines.map((line, index) => {
+        const translatedText = getLineTranslationForLanguage(line, targetLanguage);
+        const isActive = index === activeLineIndex;
 
-          return (
-            <div
-              key={`${line.timeMs}-${index}-${line.original}`}
-              className="lyra-replacement-line"
-              data-lyra-replacement-active={isActive ? 'true' : undefined}
-              role="button"
-              tabIndex={0}
+        return (
+          <div
+            key={`${line.timeMs}-${index}-${line.original}`}
+            className="lyra-replacement-line"
+            data-lyra-replacement-active={isActive ? 'true' : undefined}
+            role="button"
+            tabIndex={0}
+            style={{
+              color: isActive ? '#ffffff' : 'rgba(255, 255, 255, 0.45)',
+              cursor: 'pointer',
+              transition: 'color 200ms ease, opacity 200ms ease',
+            }}
+            onClick={() => onLineSelect?.(index)}
+            onKeyDown={(event) => {
+              if (event.key !== 'Enter' && event.key !== ' ') {
+                return;
+              }
+
+              event.preventDefault();
+              onLineSelect?.(index);
+            }}
+          >
+            <p
+              className="lyra-replacement-original"
               style={{
-                color: isActive ? '#ffffff' : 'rgba(255, 255, 255, 0.45)',
-                cursor: 'pointer',
-                transition: 'color 200ms ease, opacity 200ms ease',
-              }}
-              onClick={() => onLineSelect?.(index)}
-              onKeyDown={(event) => {
-                if (event.key !== 'Enter' && event.key !== ' ') {
-                  return;
-                }
-
-                event.preventDefault();
-                onLineSelect?.(index);
+                fontSize: lineFontSizes[fontSize],
+                fontWeight: 900,
+                letterSpacing: '0',
+                lineHeight: 1.08,
+                margin: 0,
               }}
             >
+              {line.original}
+            </p>
+            {translatedText ? (
               <p
-                className="lyra-replacement-original"
+                className="lyra-replacement-translation"
                 style={{
-                  fontSize: lineFontSizes[fontSize],
-                  fontWeight: 900,
-                  letterSpacing: '0',
-                  lineHeight: 1.08,
-                  margin: 0,
+                  color: 'rgba(255, 255, 255, 0.65)',
+                  fontSize: translationFontSizes[fontSize],
+                  fontWeight: 600,
+                  lineHeight: 1.35,
+                  margin: '12px 0 0',
                 }}
               >
-                {line.original}
+                {translatedText}
               </p>
-              {translatedText ? (
-                <p
-                  className="lyra-replacement-translation"
-                  style={{
-                    color: 'rgba(255, 255, 255, 0.65)',
-                    fontSize: translationFontSizes[fontSize],
-                    fontWeight: 600,
-                    lineHeight: 1.35,
-                    margin: '12px 0 0',
-                  }}
-                >
-                  {translatedText}
-                </p>
-              ) : phase === 'loading-translation' ? (
-                <div
-                  className="lyra-skeleton-line lyra-skeleton-line--translation"
-                  style={{
-                    ...getSkeletonLineStyle('14px', skeletonTranslationWidth),
-                    marginTop: '12px',
-                  }}
-                >
-                  <span
-                    aria-hidden="true"
-                    className="lyra-skeleton-beam"
-                    style={getSkeletonBeamStyle()}
-                  />
-                </div>
-              ) : null}
-            </div>
-          );
-        })}
-      </div>
-    </section>
+            ) : phase === 'loading-translation' ? (
+              <div
+                className="lyra-skeleton-line lyra-skeleton-line--translation"
+                style={{
+                  ...getSkeletonLineStyle('14px', skeletonTranslationWidth),
+                  marginTop: '12px',
+                }}
+              >
+                <span
+                  aria-hidden="true"
+                  className="lyra-skeleton-beam"
+                  style={getSkeletonBeamStyle()}
+                />
+              </div>
+            ) : null}
+          </div>
+        );
+      })}
+    </ReplacementLyricsFrame>
   );
 }
