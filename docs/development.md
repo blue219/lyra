@@ -2,28 +2,52 @@
 
 ## MVP behavior
 
-Lyra injects into `https://open.spotify.com/*` and renders its own lyrics view inside Spotify's lyrics page. When Spotify lyrics are available and synced, Lyra keeps Spotify's native lyrics DOM as the preferred source for visible lyric text and active-line sync, visually hides the native text, translates those lines through the configured LibreTranslate backend, and renders original plus translated lines in the same page area. If Spotify lyrics are unavailable or Spotify marks them as unsynced, Lyra falls back to synced LRCLIB lyrics for the current track.
+Lyra injects a content script into `https://open.spotify.com/*`, but it does not inject translated text into Spotify's native lyric rows. On Spotify's lyrics page, Lyra visually disables Spotify's native lyrics UI, keeps the native DOM available only as a data and active-line sync source, and renders its own React replacement lyrics page in the same lyrics area. If Spotify lyrics are unavailable or Spotify marks them as unsynced, Lyra falls back to synced LRCLIB lyrics for the current track.
 
-The current translation service supports English and Simplified Chinese. If translation is unavailable, missing an API key, or fails, Spotify's original lyrics remain unchanged.
+The current self-hosted LibreTranslate service supports English and Simplified Chinese. If translation is unavailable, missing an API key, or fails, Spotify's original lyrics remain unchanged.
 
 ## Manual loading
 
 1. Run `npm install`.
-2. Copy `.env.example` to `.env` and set `VITE_LIBRETRANSLATE_API_KEY`.
-3. Run `npm run dev`.
-4. Open your existing Chrome window and visit `chrome://extensions`.
-5. Enable developer mode.
-6. Load the unpacked extension from `.output/chrome-mv3`.
-7. Open Spotify Web Player, open Spotify's lyrics view, and verify Lyra-rendered lyrics replace the native lyric text after lyrics are visible.
+2. Copy `.env.example` to `.env`.
+3. Keep or override `VITE_LIBRETRANSLATE_BASE_URL`.
+4. Set `VITE_LIBRETRANSLATE_API_KEY`.
+5. Run `npm run dev`.
+6. Open your existing Chrome window and visit `chrome://extensions`.
+7. Enable developer mode.
+8. Load the unpacked extension from `.output/chrome-mv3`.
+9. Open Spotify Web Player, open Spotify's lyrics view, and verify Lyra-rendered lyrics replace the native lyric text after lyrics are visible.
 
 `npm run dev` uses WXT's manual runner so development happens inside your own Chrome session.
 
+## Scripts
+
+| Command | Purpose |
+| --- | --- |
+| `npm run dev` | Start WXT development mode on port `5173`. |
+| `npm test` | Run the Vitest suite once. |
+| `npm run test:watch` | Run Vitest in watch mode. |
+| `npm run compile` | Run TypeScript without emitting files. |
+| `npm run build` | Build the production extension bundle. |
+| `npm run zip` | Create a distributable extension zip through WXT. |
+
+## Configuration
+
+Lyra reads Vite environment variables from `.env`.
+
+| Variable | Required | Default | Notes |
+| --- | --- | --- | --- |
+| `VITE_LIBRETRANSLATE_BASE_URL` | No | `http://154.44.10.127:5000` | Must point to a LibreTranslate-compatible service reachable from the extension. |
+| `VITE_LIBRETRANSLATE_API_KEY` | Yes for translation | None | Missing keys make Lyra show original lyrics without translation. |
+
+The extension manifest grants `storage`, `https://lrclib.net/*`, and the default LibreTranslate host permission. If the translation backend host changes, update `host_permissions` in `wxt.config.ts` to match it.
+
 ## Manual smoke checklist
 
-- Lyra lyrics render only on Spotify Web Player's lyrics page.
+- Lyra's replacement lyrics page renders only on Spotify Web Player's lyrics page.
 - Visible Spotify lyrics are the preferred source and are translated through LibreTranslate.
 - Spotify lyrics that show the "These lyrics aren't synced to the song yet." notice fall back to LRCLIB when track metadata is available.
-- Native Spotify lyric text is visually hidden while Lyra-rendered original and translated lines appear in the same lyrics page area.
+- Native Spotify lyric text is visually hidden while Lyra's own original and translated lyric page appears in the same lyrics area.
 - Lyra shows a small English source label above the lyrics: `Source: Native`, `Source: LRCLIB`, or `No lyrics available`.
 - Lyra's replacement lyrics area can be manually scrolled and automatically centers the active lyric line during playback.
 - Lyra replacement lyric lines show a pointer cursor and can be clicked to switch Lyra's active line. LRCLIB fallback lines also seek playback by their synced timestamp.
@@ -46,15 +70,22 @@ Lyra keeps extension entrypoints in `entrypoints/` and feature code in `src/feat
 - `settings`: inline lyric settings defaults and validation.
 - `shared`: cross-feature types and browser extension API helpers.
 
-## Spotify lyrics behavior
+## Spotify lyrics replacement behavior
 
-Lyra does not click Spotify controls or open the lyrics panel automatically. On Spotify's lyrics page, it reads lyric lines already present in the page DOM, keeps those native nodes available for Spotify's own sync behavior, and visually hides their text while Lyra renders its replacement lyrics view.
+Lyra does not click Spotify controls or open the lyrics panel automatically. On Spotify's lyrics page, it reads lyric lines already present in the page DOM, keeps those native nodes available for Spotify's own sync behavior, and visually hides or disables the native lyrics UI while Lyra renders its own replacement lyrics page.
 
 Spotify lyric lines do not expose LRCLIB-style timestamps in the extension. For Spotify-sourced lyrics, Lyra uses Spotify's native active-line signal to highlight and scroll the replacement lyrics.
 
+The implementation lives in `entrypoints/content/index.tsx` and `src/features/overlay/content-app.tsx`:
+
+- `entrypoints/content/index.tsx` mounts a WXT shadow-root UI and injects CSS that makes native Spotify lyric text transparent.
+- `ContentApp` creates a `data-lyra-replacement-host` element inside the Spotify lyrics container.
+- `ReplacementLyrics` renders Lyra's own lyric page into that host through a React portal.
+- The native Spotify lyrics DOM remains in the document so Lyra can read visible lines and active-line changes, but users interact with Lyra's replacement UI.
+
 ## LRCLIB fallback behavior
 
-LRCLIB support remains available in the background lyrics API. The content script calls it when Spotify lyrics are not available on the lyrics page but the current Spotify track can be read.
+LRCLIB support remains available in the background lyrics API. The content script calls it when Spotify lyrics are not available on the lyrics page but the current Spotify track can be read. See `docs/lrclib-api.md` for endpoint examples and integration details.
 
 LRCLIB lookup uses LRCLIB search with track and artist first, then track-only search if no artist-constrained match is found. Each LRCLIB HTTP request retries transient failures up to two extra times with 200ms and 400ms backoff for network errors, HTTP 429, and HTTP 5xx responses. The selected synced lyrics are parsed as original text, cleaned of ASS/SSA style override tags, and translated through LibreTranslate. Non-retryable 4xx responses and invalid payloads fail immediately and fall through to the normal unavailable result path.
 
@@ -72,7 +103,7 @@ Lyra detects the source language through the configured LibreTranslate backend b
 
 ## LibreTranslate behavior
 
-Lyra sends batched lyric lines to the configured LibreTranslate backend separated by newlines so returned lines can be mapped back to lyric rows. The development backend preserves newlines, while some punctuation-like separators can be removed during translation.
+Lyra sends batched lyric lines to the configured self-hosted LibreTranslate backend separated by newlines so returned lines can be mapped back to lyric rows. The development backend preserves newlines, while some punctuation-like separators can be removed during translation. See `docs/libretranslate-api.md` for endpoint examples and integration details.
 
 - Base URL defaults to `http://154.44.10.127:5000`.
 - `VITE_LIBRETRANSLATE_BASE_URL` can override the base URL.
@@ -84,3 +115,10 @@ Lyra sends batched lyric lines to the configured LibreTranslate backend separate
 - Pure musical marker lines such as `♪` keep the same marker as their translation.
 - On missing API keys, unsupported languages, non-retryable 4xx responses, response format errors, or line-count mismatches, Lyra keeps showing original lyrics immediately.
 - After transient retry attempts are exhausted for detection or translation, Lyra keeps showing original lyrics.
+
+## Troubleshooting
+
+- If no Lyra UI appears, confirm the extension is loaded from `.output/chrome-mv3`, the current page matches `https://open.spotify.com/*`, and Spotify's lyrics view is open.
+- If original lyrics appear but translations do not, confirm `VITE_LIBRETRANSLATE_API_KEY` is set and the configured LibreTranslate host is included in `wxt.config.ts` host permissions.
+- If the extension stops responding after a development reload, refresh the Spotify tab so the current content script reconnects to the latest background service worker.
+- If LRCLIB fallback never appears, confirm the current Spotify track title and artists are readable in the page and that `https://lrclib.net/*` requests are not blocked by the browser or network.
