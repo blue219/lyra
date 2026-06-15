@@ -174,6 +174,13 @@ describe('renderInlineLyrics', () => {
     expect(lyricLines[1].getAttribute('data-lyra-active-line')).toBe('true');
     expect(lyricLines[1].style.borderLeft).toBe('');
     expect(lyricLines[1].style.paddingLeft).toBe('');
+    expect(lyricLines[1].style.boxShadow).toBe('inset 3px 0 0 #1ed760');
+    expect(
+      lyricLines[1].querySelector<HTMLElement>('[data-lyra-inline-translation]')?.style.color,
+    ).toBe('rgb(30, 215, 96)');
+    expect(
+      lyricLines[0].querySelector<HTMLElement>('[data-lyra-inline-translation]')?.style.color,
+    ).toBe('rgb(179, 179, 179)');
   });
 });
 

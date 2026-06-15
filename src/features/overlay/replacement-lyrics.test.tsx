@@ -75,6 +75,9 @@ describe('ReplacementLyrics', () => {
     expect(html).toContain('World');
     expect(html).toContain('世界');
     expect(html).toContain('data-lyra-replacement-active="true"');
+    expect(html).toContain('border-left:3px solid #1ed760');
+    expect(html).toContain('padding-left:14px');
+    expect(html).toContain('color:#1ed760');
   });
 
   test('renders the lyrics area as a scrollable region', () => {

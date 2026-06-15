@@ -23,6 +23,7 @@ const translationFontSizes: Record<OverlaySettings['fontSize'], string> = {
   md: '1.2rem',
   lg: '1.45rem',
 };
+const activeAccentColor = '#1ed760';
 
 function getLyricsSourceLabel(lyrics: LyricsResult): string {
   if (lyrics.status === 'unavailable' || lyrics.lines.length === 0) {
@@ -323,8 +324,10 @@ export function ReplacementLyrics({
             role="button"
             tabIndex={0}
             style={{
+              borderLeft: isActive ? `3px solid ${activeAccentColor}` : '3px solid transparent',
               color: isActive ? '#ffffff' : 'rgba(255, 255, 255, 0.45)',
               cursor: 'pointer',
+              paddingLeft: '14px',
               transition: 'color 200ms ease, opacity 200ms ease',
             }}
             onClick={() => onLineSelect?.(index)}
@@ -353,7 +356,7 @@ export function ReplacementLyrics({
               <p
                 className="lyra-replacement-translation"
                 style={{
-                  color: 'rgba(255, 255, 255, 0.65)',
+                  color: isActive ? activeAccentColor : 'rgba(255, 255, 255, 0.65)',
                   fontSize: translationFontSizes[fontSize],
                   fontWeight: 600,
                   lineHeight: 1.35,

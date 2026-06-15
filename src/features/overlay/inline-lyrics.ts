@@ -19,6 +19,8 @@ const fontSizeValues: Record<OverlaySettings['fontSize'], string> = {
   md: '1rem',
   lg: '1.125rem',
 };
+const activeAccentColor = '#1ed760';
+
 export function renderInlineLyrics(
   rootDocument: Document,
   lyrics: LyricsResult,
@@ -87,6 +89,8 @@ export function renderInlineLyrics(
       }
     }
 
+    translationElement.style.color =
+      index === options.activeLineIndex ? activeAccentColor : '#b3b3b3';
     activeElements.add(translationElement);
   });
 
@@ -120,7 +124,7 @@ function applyActiveLineStyles(lyricElement: HTMLElement, isActive: boolean) {
 
   lyricElement.setAttribute('data-lyra-active-line', 'true');
   lyricElement.style.borderLeft = '';
-  lyricElement.style.boxShadow = 'inset 3px 0 0 #1ed760';
+  lyricElement.style.boxShadow = `inset 3px 0 0 ${activeAccentColor}`;
   lyricElement.style.paddingLeft = '';
 }
 
