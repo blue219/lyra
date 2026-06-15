@@ -65,8 +65,9 @@ describe('SettingsEntry', () => {
     expect(html).toContain('Loading lyric translation.');
     expect(html).toContain('right:24px');
     expect(html).toContain('top:48px');
-    expect(html).toContain('h-9 w-9');
+    expect(html).toContain('h-10 w-10');
     expect(html).toContain('rounded-full');
+    expect(html).toContain('<img');
     expect(html).toContain('w-[min(88vw,274px)]');
     expect(html).toContain('p-4');
     expect(html).toContain('rounded-[24px]');
@@ -78,8 +79,8 @@ describe('SettingsEntry', () => {
     expect(html).toContain('text-[0.82rem]');
     expect(html).toContain('text-[0.78rem]');
     expect(html).toContain('text-[0.8rem]');
-    expect(html).toContain('leading-none');
-    expect(html).toContain('font-[900]');
+    expect(html).toContain('p-1');
+    expect(html).toContain('object-contain');
     expect(html).toContain('right-[14px]');
     expect(html).toContain('h-4 w-4');
     expect(html).toContain('pr-[10px]');

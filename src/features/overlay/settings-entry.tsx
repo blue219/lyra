@@ -2,6 +2,7 @@ import type { CSSProperties } from 'react';
 
 import type { OverlayPhase } from './lyrics-flow';
 import type { LyricsResult, OverlaySettings } from '../../shared/types';
+import settingsIconUrl from '../../assets/branding/toolbar/lyra-toolbar-green-transparent.png';
 
 export interface SettingsAnchor {
   right: number;
@@ -40,13 +41,18 @@ export function SettingsEntry({
       <button
         aria-label="Open Lyra settings"
         className={[
-          'flex h-9 w-9 items-center justify-center rounded-full border border-[var(--lyra-color-accent)]/80 bg-[rgba(20,20,20,0.94)] text-[1.1rem] font-[900] leading-none tracking-[-0.02em] text-[var(--lyra-color-accent)] antialiased shadow-[0_0_0_1px_rgba(255,255,255,0.05),0_0_10px_rgba(30,215,96,0.12)] transition hover:border-[var(--lyra-color-accent)] hover:shadow-[0_0_0_1px_rgba(255,255,255,0.08),0_0_14px_rgba(30,215,96,0.16)]',
+          'flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-[rgba(18,18,18,0.72)] p-1 text-[var(--lyra-color-accent)] antialiased shadow-[0_0_0_1px_rgba(255,255,255,0.04),0_6px_18px_rgba(0,0,0,0.26)] transition hover:border-[var(--lyra-color-accent)]/35 hover:bg-[rgba(18,18,18,0.86)] hover:shadow-[0_0_0_1px_rgba(255,255,255,0.06),0_8px_22px_rgba(0,0,0,0.32)]',
           isOpen ? 'ring-2 ring-[var(--lyra-color-accent)]/30' : '',
         ].join(' ')}
         type="button"
         onClick={() => onOpenChange(!isOpen)}
       >
-        L
+        <img
+          alt=""
+          aria-hidden="true"
+          className="h-full w-full object-contain"
+          src={settingsIconUrl}
+        />
       </button>
 
       {isOpen ? (
