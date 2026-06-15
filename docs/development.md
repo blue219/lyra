@@ -10,7 +10,7 @@ The current self-hosted LibreTranslate service supports English and Simplified C
 
 1. Run `npm install`.
 2. Copy `.env.example` to `.env`.
-3. Keep or override `VITE_LIBRETRANSLATE_BASE_URL`.
+3. Set `VITE_LIBRETRANSLATE_BASE_URL` to your LibreTranslate-compatible backend.
 4. Set `VITE_LIBRETRANSLATE_API_KEY`.
 5. Run `npm run dev`.
 6. Open your existing Chrome window and visit `chrome://extensions`.
@@ -37,10 +37,10 @@ Lyra reads Vite environment variables from `.env`.
 
 | Variable | Required | Default | Notes |
 | --- | --- | --- | --- |
-| `VITE_LIBRETRANSLATE_BASE_URL` | No | `http://154.44.10.127:5000` | Must point to a LibreTranslate-compatible service reachable from the extension. |
+| `VITE_LIBRETRANSLATE_BASE_URL` | Yes for translation | None | Must point to a LibreTranslate-compatible service reachable from the extension. |
 | `VITE_LIBRETRANSLATE_API_KEY` | Yes for translation | None | Missing keys make Lyra show original lyrics without translation. |
 
-The extension manifest grants `storage`, `https://lrclib.net/*`, and the default LibreTranslate host permission. If the translation backend host changes, update `host_permissions` in `wxt.config.ts` to match it.
+The extension manifest grants `storage`, `https://lrclib.net/*`, and `http://localhost:5000/*` for local LibreTranslate development. During local builds, `wxt.config.ts` also reads `VITE_LIBRETRANSLATE_BASE_URL` from `.env` and adds that host to the generated extension permissions without committing the private URL.
 
 ## Manual smoke checklist
 
@@ -105,8 +105,7 @@ Lyra detects the source language through the configured LibreTranslate backend b
 
 Lyra sends batched lyric lines to the configured self-hosted LibreTranslate backend separated by newlines so returned lines can be mapped back to lyric rows. The development backend preserves newlines, while some punctuation-like separators can be removed during translation. See `docs/libretranslate-api.md` for endpoint examples and integration details.
 
-- Base URL defaults to `http://154.44.10.127:5000`.
-- `VITE_LIBRETRANSLATE_BASE_URL` can override the base URL.
+- `VITE_LIBRETRANSLATE_BASE_URL` must be set to enable translation.
 - `VITE_LIBRETRANSLATE_API_KEY` is required for translation requests.
 - The request body includes `q`, `source`, `target`, `format`, and `api_key`.
 - Lyra sends `q` and `api_key` to `/detect` before translating.
@@ -119,6 +118,6 @@ Lyra sends batched lyric lines to the configured self-hosted LibreTranslate back
 ## Troubleshooting
 
 - If no Lyra UI appears, confirm the extension is loaded from `.output/chrome-mv3`, the current page matches `https://open.spotify.com/*`, and Spotify's lyrics view is open.
-- If original lyrics appear but translations do not, confirm `VITE_LIBRETRANSLATE_API_KEY` is set and the configured LibreTranslate host is included in `wxt.config.ts` host permissions.
+- If original lyrics appear but translations do not, confirm `VITE_LIBRETRANSLATE_BASE_URL` and `VITE_LIBRETRANSLATE_API_KEY` are set and the configured LibreTranslate host is included in `wxt.config.ts` host permissions.
 - If the extension stops responding after a development reload, refresh the Spotify tab so the current content script reconnects to the latest background service worker.
 - If LRCLIB fallback never appears, confirm the current Spotify track title and artists are readable in the page and that `https://lrclib.net/*` requests are not blocked by the browser or network.

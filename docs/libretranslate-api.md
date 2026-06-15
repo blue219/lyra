@@ -12,8 +12,12 @@ Official references:
 
 ## Base URL
 
+Lyra does not provide a default LibreTranslate server. Set `VITE_LIBRETRANSLATE_BASE_URL` to a LibreTranslate-compatible backend you control.
+
+Example local development URL:
+
 ```text
-http://154.44.10.127:5000
+http://localhost:5000
 ```
 
 ## Authentication
@@ -25,7 +29,7 @@ Send the key as `api_key` in the JSON request body.
 Do not commit real API keys into the repository. Use local environment variables:
 
 ```text
-VITE_LIBRETRANSLATE_BASE_URL=http://154.44.10.127:5000
+VITE_LIBRETRANSLATE_BASE_URL=http://localhost:5000
 VITE_LIBRETRANSLATE_API_KEY=<your-api-key>
 ```
 
@@ -112,7 +116,7 @@ Response:
 This mirrors the request shape Lyra uses internally.
 
 ```ts
-const response = await fetch("http://154.44.10.127:5000/translate", {
+const response = await fetch("http://localhost:5000/translate", {
   method: "POST",
   headers: {
     "Content-Type": "application/json",
@@ -151,7 +155,7 @@ GET /languages
 Example:
 
 ```bash
-curl http://154.44.10.127:5000/languages
+curl http://localhost:5000/languages
 ```
 
 Expected response:
@@ -175,4 +179,4 @@ Expected response:
 
 - The service is currently exposed over plain HTTP for development.
 - For production usage, put it behind HTTPS and avoid exposing the raw translation service directly to browsers.
-- If `VITE_LIBRETRANSLATE_BASE_URL` changes, update `host_permissions` in `wxt.config.ts` so the browser extension can call the new host.
+- During local builds, `wxt.config.ts` reads `VITE_LIBRETRANSLATE_BASE_URL` from `.env` and adds that host to the generated extension permissions. Keep private `.env` values out of version control.

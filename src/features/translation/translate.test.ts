@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, test, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
 import { translateLyricLines, translateLyricsResult } from './translate';
 import type { LyricLine } from '../../shared/types';
@@ -10,6 +10,10 @@ const simpleLines: LyricLine[] = [
 ];
 
 describe('translateLyricLines', () => {
+  beforeEach(() => {
+    vi.stubEnv('VITE_LIBRETRANSLATE_BASE_URL', 'http://translate.test');
+  });
+
   afterEach(() => {
     vi.restoreAllMocks();
     vi.unstubAllEnvs();
@@ -192,9 +196,18 @@ describe('translateLyricLines', () => {
 
     expect(result).toEqual(simpleLines);
     expect(fetchMock).toHaveBeenCalledTimes(1);
-    expect(String(fetchMock.mock.calls[0]?.[0])).toBe(
-      'http://154.44.10.127:5000/detect',
-    );
+    expect(String(fetchMock.mock.calls[0]?.[0])).toBe('http://translate.test/detect');
+  });
+
+  test('returns original lines when the base URL is missing', async () => {
+    vi.stubEnv('VITE_LIBRETRANSLATE_BASE_URL', '');
+    vi.stubEnv('VITE_LIBRETRANSLATE_API_KEY', 'test-key');
+    const fetchMock = vi.spyOn(globalThis, 'fetch');
+
+    const result = await translateLyricLines(simpleLines, 'zh-CN');
+
+    expect(result).toEqual(simpleLines);
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   test('returns original lines when the API key is missing', async () => {

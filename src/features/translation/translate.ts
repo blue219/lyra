@@ -1,7 +1,6 @@
 import type { LyricLine, LyricsResult } from '../../shared/types';
 import { retryWithBackoff } from '../../shared/retry';
 
-const defaultTranslateApiBaseUrl = 'http://154.44.10.127:5000';
 const lineSeparator = '\n';
 
 export async function translateLyricsResult(
@@ -58,7 +57,14 @@ async function translateLyricLinesWithDetection(
     return { lines };
   }
 
-  const sourceLanguage = await detectLyricsSourceLanguage(lines, apiKey);
+  const baseUrl = getLibreTranslateBaseUrl();
+
+  if (!baseUrl) {
+    console.warn('[Lyra] LibreTranslate base URL is missing');
+    return { lines };
+  }
+
+  const sourceLanguage = await detectLyricsSourceLanguage(lines, apiKey, baseUrl);
   const sourceCode = toLibreTranslateLanguage(sourceLanguage);
 
   if (!sourceLanguage || !sourceCode || sourceCode === targetCode) {
@@ -71,7 +77,7 @@ async function translateLyricLinesWithDetection(
   try {
     const response = await retryWithBackoff({
       operation: async () => {
-        const nextResponse = await fetch(`${getLibreTranslateBaseUrl()}/translate`, {
+        const nextResponse = await fetch(`${baseUrl}/translate`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -173,11 +179,12 @@ function toLibreTranslateLanguage(language: string | undefined): string | null {
 async function detectLyricsSourceLanguage(
   lines: LyricLine[],
   apiKey: string,
+  baseUrl: string,
 ): Promise<string | undefined> {
   try {
     const response = await retryWithBackoff({
       operation: async () => {
-        const nextResponse = await fetch(`${getLibreTranslateBaseUrl()}/detect`, {
+        const nextResponse = await fetch(`${baseUrl}/detect`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -256,13 +263,12 @@ function fromLibreTranslateLanguage(language: string): string | undefined {
   return undefined;
 }
 
-function getLibreTranslateBaseUrl(): string {
-  return (
-    (import.meta.env.VITE_LIBRETRANSLATE_BASE_URL as string | undefined)?.replace(
-      /\/+$/,
-      '',
-    ) || defaultTranslateApiBaseUrl
-  );
+function getLibreTranslateBaseUrl(): string | undefined {
+  const value = (import.meta.env.VITE_LIBRETRANSLATE_BASE_URL as string | undefined)
+    ?.replace(/\/+$/, '')
+    .trim();
+
+  return value || undefined;
 }
 
 function getLibreTranslateApiKey(): string | undefined {
