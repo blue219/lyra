@@ -34,14 +34,14 @@ export function SettingsEntry({
 }: SettingsEntryProps) {
   return (
     <div
-      className="fixed z-[2147483647] font-[var(--lyra-font-ui)] text-[var(--lyra-color-text)]"
+      className="fixed z-[2147483647] flex flex-col items-end pr-[10px] font-[var(--lyra-font-ui)] text-[var(--lyra-color-text)]"
       style={getSettingsEntryStyle(anchor)}
     >
       <button
         aria-label="Open Lyra settings"
         className={[
-          'flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-[var(--lyra-color-surface-2)] text-sm font-black text-[var(--lyra-color-accent)] shadow-[var(--lyra-shadow-elevated)] transition hover:border-white/30',
-          isOpen ? 'ring-2 ring-[var(--lyra-color-accent)]/50' : '',
+          'flex h-9 w-9 items-center justify-center rounded-full border border-[var(--lyra-color-accent)]/80 bg-[rgba(20,20,20,0.94)] text-[1.1rem] font-[900] leading-none tracking-[-0.02em] text-[var(--lyra-color-accent)] antialiased shadow-[0_0_0_1px_rgba(255,255,255,0.05),0_0_10px_rgba(30,215,96,0.12)] transition hover:border-[var(--lyra-color-accent)] hover:shadow-[0_0_0_1px_rgba(255,255,255,0.08),0_0_14px_rgba(30,215,96,0.16)]',
+          isOpen ? 'ring-2 ring-[var(--lyra-color-accent)]/30' : '',
         ].join(' ')}
         type="button"
         onClick={() => onOpenChange(!isOpen)}
@@ -50,16 +50,21 @@ export function SettingsEntry({
       </button>
 
       {isOpen ? (
-        <section className="mt-3 w-[min(88vw,280px)] rounded-[18px] border border-white/10 bg-[var(--lyra-color-surface)] p-4 shadow-[var(--lyra-shadow-dialog)]">
+        <section className="relative mt-3 w-[min(88vw,274px)] rounded-[24px] border border-white/12 bg-[rgba(24,24,24,0.96)] p-4 shadow-[0_12px_28px_rgba(0,0,0,0.3)]">
+          <div
+            aria-hidden="true"
+            data-lyra-settings-notch="true"
+            className="absolute -top-[3px] right-[14px] h-4 w-4 rotate-45 border-t border-l border-white/12 bg-[rgba(24,24,24,0.96)]"
+          />
           <div>
             <label
-              className="text-[10px] font-bold uppercase tracking-[2px] text-[var(--lyra-color-muted)]"
+              className="text-[10px] font-bold uppercase tracking-[4px] text-white/70"
               htmlFor="lyra-target-language"
             >
               Target language
             </label>
             <select
-              className="mt-2 w-full rounded-full border border-[var(--lyra-color-border)] bg-[var(--lyra-color-surface-2)] px-4 py-3 text-sm text-white outline-none"
+              className="mt-3 w-full rounded-[999px] border border-white/20 bg-[rgba(25,25,25,0.92)] px-4 py-3 text-[0.82rem] font-medium text-white outline-none transition"
               id="lyra-target-language"
               value={settings.targetLanguage}
               onChange={(event) =>
@@ -74,30 +79,30 @@ export function SettingsEntry({
             </select>
           </div>
 
-          <div className="mt-4">
-            <p className="text-[10px] font-bold uppercase tracking-[2px] text-[var(--lyra-color-muted)]">
+          <div className="mt-5">
+            <p className="text-[10px] font-bold uppercase tracking-[4px] text-white/70">
               Font size
             </p>
-            <div className="mt-2 grid grid-cols-3 gap-2">
+            <div className="mt-3 grid grid-cols-3 gap-2.5">
               {(['sm', 'md', 'lg'] as const).map((fontSize) => (
                 <button
                   key={fontSize}
                   className={[
-                    'rounded-full px-3 py-2 text-[10px] font-bold uppercase tracking-[1.8px] transition',
+                    'rounded-[999px] border px-3 py-2 text-[0.78rem] font-bold uppercase tracking-[2px] transition',
                     settings.fontSize === fontSize
-                      ? 'bg-[var(--lyra-color-accent)] text-black'
-                      : 'border border-[var(--lyra-color-border)] bg-[var(--lyra-color-surface-2)] text-white hover:border-white',
+                      ? 'border-[var(--lyra-color-accent)] bg-[var(--lyra-color-accent)] text-black shadow-[0_4px_14px_rgba(30,215,96,0.2)]'
+                      : 'border-white/25 bg-transparent text-white hover:border-white/50',
                   ].join(' ')}
                   type="button"
                   onClick={() => onSettingsChange({ fontSize })}
                 >
-                  {fontSize}
+                  {fontSize.toUpperCase()}
                 </button>
               ))}
             </div>
           </div>
 
-          <p className="mt-4 text-xs leading-5 text-[var(--lyra-color-muted)]">
+          <p className="mt-5 text-[0.8rem] leading-5 text-white/68">
             {getPhaseLabel(phase, lyrics)}
           </p>
         </section>

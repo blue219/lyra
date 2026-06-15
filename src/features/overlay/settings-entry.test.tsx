@@ -52,7 +52,7 @@ describe('SettingsEntry', () => {
         anchor={{ right: 24, top: 48 }}
         isOpen
         lyrics={bilingualLyrics}
-        phase="ready"
+        phase="loading-translation"
         settings={settings}
         onOpenChange={() => undefined}
         onSettingsChange={() => undefined}
@@ -62,9 +62,27 @@ describe('SettingsEntry', () => {
     expect(html).toContain('Target language');
     expect(html).toContain('Chinese (Simplified)');
     expect(html).toContain('Font size');
-    expect(html).toContain('Lyra lyrics are synced with playback.');
+    expect(html).toContain('Loading lyric translation.');
     expect(html).toContain('right:24px');
     expect(html).toContain('top:48px');
+    expect(html).toContain('h-9 w-9');
+    expect(html).toContain('rounded-full');
+    expect(html).toContain('w-[min(88vw,274px)]');
+    expect(html).toContain('p-4');
+    expect(html).toContain('rounded-[24px]');
+    expect(html).toContain('tracking-[4px]');
+    expect(html).toContain('rounded-[999px]');
+    expect(html).toContain('bg-[var(--lyra-color-accent)] text-black');
+    expect(html).toContain('data-lyra-settings-notch="true"');
+    expect(html).toContain('text-[10px]');
+    expect(html).toContain('text-[0.82rem]');
+    expect(html).toContain('text-[0.78rem]');
+    expect(html).toContain('text-[0.8rem]');
+    expect(html).toContain('leading-none');
+    expect(html).toContain('font-[900]');
+    expect(html).toContain('right-[14px]');
+    expect(html).toContain('h-4 w-4');
+    expect(html).toContain('pr-[10px]');
   });
 });
 
