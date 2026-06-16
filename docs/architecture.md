@@ -27,7 +27,7 @@ Lyra is a WXT Manifest V3 browser extension for Spotify Web Player.
 | `src/features/overlay` | React replacement lyrics page, settings entry, lyrics request orchestration, active-line selection, scroll behavior, and replacement rendering. |
 | `src/features/spotify` | Spotify DOM readers, lyrics page detection, track identity extraction, active line detection, and playback seeking helpers. |
 | `src/features/lyrics` | LRCLIB lookup, synced lyrics parsing, cache controller, and runtime message contracts. |
-| `src/features/translation` | LibreTranslate language detection, language-code mapping, batched line translation, retry handling, and translation degradation behavior. |
+| `src/features/translation` | Google Translate web translation, LibreTranslate fallback, language-code mapping, line-boundary validation, retry handling, and translation degradation behavior. |
 | `src/features/settings` | Overlay settings defaults and validation. |
 | `src/shared` | Shared types, retry helpers, extension API wrappers, and test utilities. |
 
@@ -80,7 +80,8 @@ The lyrics cache keeps up to 200 entries. Bilingual and normal monolingual resul
 | --- | --- | --- |
 | Spotify Web Player | Visible lyric DOM, track identity, playback position, and seek interactions. | Content script match: `https://open.spotify.com/*`. |
 | LRCLIB | Synced fallback lyrics when Spotify lyrics are missing or unsynced. Lyra uses the public `https://lrclib.net/api` service through HTTP requests. | Host permission: `https://lrclib.net/*`; see `docs/lrclib-api.md`. |
-| Self-hosted LibreTranslate | Source language detection and bilingual translation. Lyra calls the deployed HTTP API and does not import LibreTranslate code. | `VITE_LIBRETRANSLATE_BASE_URL` and `VITE_LIBRETRANSLATE_API_KEY`; see `docs/libretranslate-api.md`. |
+| Google Translate web endpoint | Primary bilingual translation path. Lyra calls the web endpoint directly and validates lyric line boundaries before using the result. | Host permission: `https://translate.googleapis.com/*`; no environment variable is required. |
+| Self-hosted LibreTranslate | Fallback source language detection and bilingual translation when Google translation is unavailable or cannot be mapped back to lyric lines. Lyra calls the deployed HTTP API and does not import LibreTranslate code. | `VITE_LIBRETRANSLATE_BASE_URL` and `VITE_LIBRETRANSLATE_API_KEY`; see `docs/libretranslate-api.md`. |
 
 ## Settings
 
@@ -96,4 +97,5 @@ Unsupported or malformed persisted settings are sanitized back to defaults befor
 - Lyra does not open Spotify's lyrics panel automatically.
 - Spotify-sourced lyrics do not expose LRCLIB-style timestamps, so Spotify's native active-line signal drives sync for that source.
 - LRCLIB line clicks seek Spotify playback by timestamp; Spotify-sourced line clicks delegate to Spotify's native lyric row click behavior.
-- Translation is skipped when the API key is missing, source detection fails, a language pair is unsupported, or translated line counts do not match original line counts.
+- Google Translate uses an unofficial web endpoint that can change or become rate limited.
+- Translation falls back or is skipped when provider requests fail, source detection fails, a language pair is unsupported, or translated line counts do not match original line counts.

@@ -27,6 +27,7 @@ export default defineConfig({
     permissions: ['storage'],
     host_permissions: [
       'https://lrclib.net/*',
+      'https://translate.googleapis.com/*',
       'http://localhost:5000/*',
       ...(libreTranslateHostPermission ? [libreTranslateHostPermission] : []),
     ],

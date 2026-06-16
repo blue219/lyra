@@ -1,8 +1,8 @@
-# LibreTranslate Integration
+# LibreTranslate Fallback Integration
 
-This document describes how Lyra uses a self-hosted [LibreTranslate](https://github.com/LibreTranslate/LibreTranslate) backend for lyric language detection and translation.
+This document describes how Lyra uses a self-hosted [LibreTranslate](https://github.com/LibreTranslate/LibreTranslate) backend as the fallback provider for lyric language detection and translation.
 
-LibreTranslate is a free and open-source machine translation API. It can be self-hosted and does not depend on proprietary translation providers. Lyra treats it as an HTTP service and does not import LibreTranslate code directly.
+LibreTranslate is a free and open-source machine translation API. It can be self-hosted and does not depend on proprietary translation providers. Lyra treats it as an HTTP service and does not import LibreTranslate code directly. The primary translation path uses Google Translate's web endpoint first; LibreTranslate is used when Google translation fails or cannot be mapped back to lyric lines.
 
 Official references:
 
@@ -12,7 +12,7 @@ Official references:
 
 ## Base URL
 
-Lyra does not provide a default LibreTranslate server. Set `VITE_LIBRETRANSLATE_BASE_URL` to a LibreTranslate-compatible backend you control.
+Lyra does not provide a default LibreTranslate server. Set `VITE_LIBRETRANSLATE_BASE_URL` to a LibreTranslate-compatible backend you control when you want the fallback provider enabled.
 
 Example local development URL:
 
@@ -55,7 +55,7 @@ Use `zh-Hans`, not `zh`, when translating to Simplified Chinese.
 
 ## Detect Source Language
 
-Lyra detects the source language before translating. Detection runs once for the whole lyrics result, not once per lyric line.
+When LibreTranslate fallback is used, Lyra detects the source language before translating. Detection runs once for the whole lyrics result, not once per lyric line.
 
 ```http
 POST /detect
@@ -140,7 +140,9 @@ console.log(data.translatedText);
 
 ## Lyra Integration
 
-Lyra detects source language first by sending all lyric lines as a newline-separated `q` value to `POST /detect` with `api_key` in the JSON body.
+Lyra first attempts translation through Google Translate's web endpoint. If Google translation fails, returns an unexpected response, cannot preserve lyric line boundaries, or returns no usable translation, Lyra falls back to LibreTranslate when `VITE_LIBRETRANSLATE_BASE_URL` and `VITE_LIBRETRANSLATE_API_KEY` are configured.
+
+For the LibreTranslate fallback path, Lyra detects source language first by sending all lyric lines as a newline-separated `q` value to `POST /detect` with `api_key` in the JSON body.
 
 Lyra then batches lyric lines into a single `q` value separated by newlines for `POST /translate`, and splits `translatedText` back into line-level translations. If detection fails, returns an unsupported language, matches the selected target language, or if the translated split line count does not match the original line count, Lyra shows original lyrics.
 
@@ -179,4 +181,4 @@ Expected response:
 
 - The service is currently exposed over plain HTTP for development.
 - For production usage, put it behind HTTPS and avoid exposing the raw translation service directly to browsers.
-- During local builds, `wxt.config.ts` reads `VITE_LIBRETRANSLATE_BASE_URL` from `.env` and adds that host to the generated extension permissions. Keep private `.env` values out of version control.
+- During local builds, `wxt.config.ts` reads `VITE_LIBRETRANSLATE_BASE_URL` from `.env` and adds that host to the generated extension permissions. The Google Translate web endpoint host is granted statically. Keep private `.env` values out of version control.

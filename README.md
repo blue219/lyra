@@ -10,8 +10,8 @@
 
 <p align="center">
   Lyra replaces Spotify's lyrics view with a clean React-powered bilingual lyrics page,
-  backed by Spotify's native lyric sync, LRCLIB fallback lyrics, and a self-hosted
-  LibreTranslate service.
+  backed by Spotify's native lyric sync, LRCLIB fallback lyrics, Google Translate,
+  and a self-hosted LibreTranslate fallback service.
 </p>
 
 <p align="center">
@@ -28,7 +28,7 @@ Lyra is a Chromium browser extension for Spotify Web Player. It helps listeners 
 
 Instead of injecting translated text into Spotify's native lyric rows, Lyra visually disables the native lyrics UI, keeps Spotify's DOM available as a data and sync source, and renders its own lyrics page in the same area. When Spotify lyrics are unavailable or unsynced, Lyra can fall back to synced lyrics from [LRCLIB](https://github.com/tranxuanthang/lrclib).
 
-Translation is handled through a self-hosted [LibreTranslate](https://github.com/LibreTranslate/LibreTranslate) backend. The current development backend supports English and Simplified Chinese.
+Translation first uses Google Translate's web endpoint, then falls back to a self-hosted [LibreTranslate](https://github.com/LibreTranslate/LibreTranslate) backend when Google translation is unavailable or cannot preserve lyric line boundaries. The current development backend supports English and Simplified Chinese.
 
 ## Features
 
@@ -51,7 +51,7 @@ Translation is handled through a self-hosted [LibreTranslate](https://github.com
 | Build tooling | Vite 8 |
 | Testing | Vitest, jsdom |
 | Lyrics source | Spotify Web Player DOM, LRCLIB |
-| Translation | Self-hosted LibreTranslate |
+| Translation | Google Translate web endpoint, self-hosted LibreTranslate fallback |
 
 ## Project Structure
 
@@ -60,7 +60,7 @@ entrypoints/                 WXT extension entrypoints
 src/features/overlay         Lyrics replacement UI and content app state
 src/features/spotify         Spotify Web Player DOM readers and track helpers
 src/features/lyrics          LRCLIB fallback, synced lyric parsing, cache, messages
-src/features/translation     LibreTranslate integration
+src/features/translation     Translation provider orchestration
 src/features/settings        Overlay settings defaults and validation
 src/shared                   Shared types, retry helpers, and extension utilities
 docs/                        Architecture, development, and API notes
@@ -73,7 +73,7 @@ docs/                        Architecture, development, and API notes
 - Node.js 22 LTS
 - npm
 - Chrome or another Chromium-based browser
-- A reachable LibreTranslate-compatible backend for bilingual translation
+- A reachable LibreTranslate-compatible backend for fallback translation
 
 ### Installation
 
@@ -89,7 +89,7 @@ Create a local environment file:
 cp .env.example .env
 ```
 
-Configure LibreTranslate:
+Configure LibreTranslate fallback:
 
 ```bash
 VITE_LIBRETRANSLATE_BASE_URL=http://localhost:5000
@@ -116,10 +116,10 @@ Lyra reads Vite environment variables from `.env`.
 
 | Variable | Required | Default | Description |
 | --- | --- | --- | --- |
-| `VITE_LIBRETRANSLATE_BASE_URL` | Yes for translation | None | LibreTranslate-compatible backend used for language detection and translation. |
-| `VITE_LIBRETRANSLATE_API_KEY` | Yes for translation | None | API key sent as `api_key` in LibreTranslate JSON request bodies. |
+| `VITE_LIBRETRANSLATE_BASE_URL` | Yes for LibreTranslate fallback | None | LibreTranslate-compatible backend used when Google translation is unavailable. |
+| `VITE_LIBRETRANSLATE_API_KEY` | Yes for LibreTranslate fallback | None | API key sent as `api_key` in LibreTranslate JSON request bodies. |
 
-Without `VITE_LIBRETRANSLATE_BASE_URL` or `VITE_LIBRETRANSLATE_API_KEY`, Lyra still renders original lyrics but skips translation.
+Without `VITE_LIBRETRANSLATE_BASE_URL` or `VITE_LIBRETRANSLATE_API_KEY`, Lyra still tries Google translation first. If Google is unavailable and LibreTranslate is not configured, Lyra renders original lyrics without translation.
 
 During development, WXT reads your local `.env` and adds the configured LibreTranslate host to the generated extension permissions. Do not commit private `.env` values.
 
@@ -157,8 +157,9 @@ For browser-level validation, load `.output/chrome-mv3`, open Spotify Web Player
 
 - Lyra does not open Spotify's lyrics panel automatically.
 - Spotify-sourced lyrics use Spotify's native active-line signal rather than LRCLIB timestamps.
-- Translation is skipped when the API key is missing, language detection fails, the language pair is unsupported, or translated line counts do not match original lines.
-- The current development translation backend supports English and Simplified Chinese.
+- Google Translate uses an unofficial web endpoint and can change or become rate limited; LibreTranslate remains the configured fallback.
+- Translation falls back or is skipped when provider requests fail, language detection fails, the language pair is unsupported, or translated line counts do not match original lines.
+- The current development LibreTranslate fallback backend supports English and Simplified Chinese.
 
 ## Contributing
 
