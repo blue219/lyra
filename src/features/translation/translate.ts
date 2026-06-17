@@ -4,11 +4,19 @@ import { retryWithBackoff } from '../../shared/retry';
 const lineSeparator = '\n';
 const googleTranslateUrl = 'https://translate.googleapis.com/translate_a/single';
 const googleLineSeparator = '[[LYRA_LINE_BREAK_8B4B4F0D]]';
+const googleLineJoiner = `${lineSeparator}${googleLineSeparator}${lineSeparator}`;
+const googleTranslateMaxQueryLength = 1_800;
 
 type TranslationAttemptResult =
   | { status: 'translated'; lines: LyricLine[]; sourceLanguage?: string }
   | { status: 'same-language'; lines: LyricLine[]; sourceLanguage?: string }
   | { status: 'failed'; sourceLanguage?: string };
+
+type GoogleLineChunk = {
+  startIndex: number;
+  lines: LyricLine[];
+  skipGoogle: boolean;
+};
 
 export async function translateLyricsResult(
   result: LyricsResult,
@@ -33,8 +41,8 @@ export async function translateLyricsResult(
   };
 }
 
-/** Translates lyric lines in one LibreTranslate request. Failures intentionally
- *  return the original lines so the overlay stays readable without translation.
+/** Translates lyric lines through the provider chain. Failures intentionally
+ *  return original lines so the overlay stays readable without translation.
  */
 export async function translateLyricLines(
   lines: LyricLine[],
@@ -73,15 +81,89 @@ async function translateWithGoogleWeb(
     return { status: 'failed' };
   }
 
+  const chunks = chunkLinesForGoogleTranslate(lines);
+  const nextLines = [...lines];
+  let sourceLanguage: string | undefined;
+  let hasAnyTranslation = false;
+  let hasAnyGoogleFailure = false;
+  let hasAnyGoogleRequest = false;
+
+  for (const chunk of chunks) {
+    if (chunk.skipGoogle) {
+      hasAnyGoogleFailure = true;
+      const fallbackResult = await translateWithLibreTranslate(
+        chunk.lines,
+        targetLanguage,
+        sourceLanguage,
+      );
+
+      sourceLanguage = sourceLanguage ?? fallbackResult.sourceLanguage;
+      replaceLinesAt(nextLines, chunk.startIndex, fallbackResult.lines);
+      hasAnyTranslation ||= fallbackResult.lines.some((line) => Boolean(line.translated));
+      continue;
+    }
+
+    hasAnyGoogleRequest = true;
+    const chunkResult = await translateGoogleLineChunk(
+      chunk.lines,
+      targetLanguage,
+      targetCode,
+    );
+
+    sourceLanguage = sourceLanguage ?? chunkResult.sourceLanguage;
+
+    if (chunkResult.status === 'same-language') {
+      return {
+        status: 'same-language',
+        lines,
+        sourceLanguage: chunkResult.sourceLanguage,
+      };
+    }
+
+    if (chunkResult.status === 'translated') {
+      replaceLinesAt(nextLines, chunk.startIndex, chunkResult.lines);
+      hasAnyTranslation ||= chunkResult.lines.some((line) => Boolean(line.translated));
+      continue;
+    }
+
+    hasAnyGoogleFailure = true;
+    const fallbackResult = await translateWithLibreTranslate(
+      chunk.lines,
+      targetLanguage,
+      sourceLanguage,
+    );
+
+    sourceLanguage = sourceLanguage ?? fallbackResult.sourceLanguage;
+    replaceLinesAt(nextLines, chunk.startIndex, fallbackResult.lines);
+    hasAnyTranslation ||= fallbackResult.lines.some((line) => Boolean(line.translated));
+  }
+
+  if (hasAnyTranslation) {
+    return {
+      status: 'translated',
+      lines: nextLines,
+      sourceLanguage,
+    };
+  }
+
+  if (hasAnyGoogleFailure) {
+    return {
+      status: 'translated',
+      lines: nextLines,
+      sourceLanguage,
+    };
+  }
+
+  return { status: 'failed', sourceLanguage };
+}
+
+async function translateGoogleLineChunk(
+  lines: LyricLine[],
+  targetLanguage: string,
+  targetCode: string,
+): Promise<TranslationAttemptResult> {
   try {
-    const url = new URL(googleTranslateUrl);
-    url.searchParams.set('client', 'gtx');
-    url.searchParams.set('sl', 'auto');
-    url.searchParams.set('tl', targetCode);
-    url.searchParams.set('dt', 't');
-    url.searchParams.set('q', lines.map((line) => line.original).join(
-      `${lineSeparator}${googleLineSeparator}${lineSeparator}`,
-    ));
+    const url = createGoogleTranslateUrl(lines, targetCode);
 
     const response = await fetch(url.toString());
 
@@ -127,11 +209,90 @@ async function translateWithGoogleWeb(
     };
   } catch (error) {
     console.warn(
-      '[Lyra] Google Translate failed, falling back to LibreTranslate:',
+      '[Lyra] Google Translate chunk failed, falling back to LibreTranslate:',
       error,
     );
     return { status: 'failed' };
   }
+}
+
+function createGoogleTranslateUrl(lines: LyricLine[], targetCode: string): URL {
+  const url = new URL(googleTranslateUrl);
+  url.searchParams.set('client', 'gtx');
+  url.searchParams.set('sl', 'auto');
+  url.searchParams.set('tl', targetCode);
+  url.searchParams.set('dt', 't');
+  url.searchParams.set('q', lines.map((line) => line.original).join(googleLineJoiner));
+
+  return url;
+}
+
+function chunkLinesForGoogleTranslate(lines: LyricLine[]): GoogleLineChunk[] {
+  const chunks: GoogleLineChunk[] = [];
+  let currentLines: LyricLine[] = [];
+  let currentStartIndex = 0;
+  let currentLength = 0;
+
+  const flushCurrentChunk = () => {
+    if (currentLines.length === 0) {
+      return;
+    }
+
+    chunks.push({
+      startIndex: currentStartIndex,
+      lines: currentLines,
+      skipGoogle: false,
+    });
+    currentLines = [];
+    currentLength = 0;
+  };
+
+  lines.forEach((line, index) => {
+    const lineLength = line.original.length;
+
+    if (lineLength > googleTranslateMaxQueryLength) {
+      flushCurrentChunk();
+      chunks.push({
+        startIndex: index,
+        lines: [line],
+        skipGoogle: true,
+      });
+      return;
+    }
+
+    const nextLength =
+      currentLines.length === 0
+        ? lineLength
+        : currentLength + googleLineJoiner.length + lineLength;
+
+    if (currentLines.length > 0 && nextLength > googleTranslateMaxQueryLength) {
+      flushCurrentChunk();
+    }
+
+    if (currentLines.length === 0) {
+      currentStartIndex = index;
+      currentLength = lineLength;
+      currentLines = [line];
+      return;
+    }
+
+    currentLength += googleLineJoiner.length + lineLength;
+    currentLines.push(line);
+  });
+
+  flushCurrentChunk();
+
+  return chunks;
+}
+
+function replaceLinesAt(
+  targetLines: LyricLine[],
+  startIndex: number,
+  replacementLines: LyricLine[],
+): void {
+  replacementLines.forEach((line, index) => {
+    targetLines[startIndex + index] = line;
+  });
 }
 
 async function translateWithLibreTranslate(

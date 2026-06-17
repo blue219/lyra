@@ -72,6 +72,107 @@ describe('translateLyricLines', () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
+  test('splits Google requests on lyric line boundaries when the query would be too long', async () => {
+    const lines: LyricLine[] = [
+      { timeMs: 1_000, original: 'First '.repeat(250) },
+      { timeMs: 2_000, original: 'Second '.repeat(100) },
+      { timeMs: 3_000, original: 'Third '.repeat(100) },
+    ];
+
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
+      const url = new URL(String(input));
+      const query = url.searchParams.get('q');
+
+      if (query === lines[0]?.original) {
+        return createGoogleTranslateResponse(['第一']);
+      }
+
+      expect(query).toBe(`${lines[1]?.original}\n${googleLineSeparator}\n${lines[2]?.original}`);
+      return createGoogleTranslateResponse([
+        '第二\n',
+        `${googleLineSeparator}\n`,
+        '第三',
+      ]);
+    });
+
+    const result = await translateLyricLines(lines, 'zh-CN');
+
+    expect(result.map((line) => line.translated)).toEqual(['第一', '第二', '第三']);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  test('falls back only for a Google chunk that cannot preserve lyric line count', async () => {
+    vi.stubEnv('VITE_LIBRETRANSLATE_API_KEY', 'test-key');
+    const lines: LyricLine[] = [
+      { timeMs: 1_000, original: 'First '.repeat(250) },
+      { timeMs: 2_000, original: 'Second '.repeat(100) },
+      { timeMs: 3_000, original: 'Third '.repeat(100) },
+    ];
+
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
+      if (isGoogleTranslateUrl(input)) {
+        const query = new URL(String(input)).searchParams.get('q');
+
+        if (query === lines[0]?.original) {
+          return createGoogleTranslateResponse(['第一']);
+        }
+
+        return createGoogleTranslateResponse(['第二第三']);
+      }
+
+      expect(String(input)).toBe('http://translate.test/translate');
+      expect(JSON.parse(String(init?.body))).toEqual({
+        q: `${lines[1]?.original}\n${lines[2]?.original}`,
+        source: 'en',
+        target: 'zh-Hans',
+        format: 'text',
+        api_key: 'test-key',
+      });
+
+      return createJsonResponse({
+        translatedText: '第二\n第三',
+      });
+    });
+
+    const result = await translateLyricLines(lines, 'zh-CN');
+
+    expect(result.map((line) => line.translated)).toEqual(['第一', '第二', '第三']);
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+  });
+
+  test('falls back for a single lyric line that is longer than the Google query limit', async () => {
+    vi.stubEnv('VITE_LIBRETRANSLATE_API_KEY', 'test-key');
+    const lines: LyricLine[] = [
+      { timeMs: 1_000, original: 'short line' },
+      { timeMs: 2_000, original: 'very long line '.repeat(140) },
+    ];
+
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
+      if (isGoogleTranslateUrl(input)) {
+        expect(new URL(String(input)).searchParams.get('q')).toBe(lines[0]?.original);
+        return createGoogleTranslateResponse(['短句']);
+      }
+
+      expect(String(input)).toBe('http://translate.test/translate');
+      expect(JSON.parse(String(init?.body))).toEqual({
+        q: lines[1]?.original,
+        source: 'en',
+        target: 'zh-Hans',
+        format: 'text',
+        api_key: 'test-key',
+      });
+
+      return createJsonResponse({
+        translatedText: '很长的一行',
+      });
+    });
+
+    const result = await translateLyricLines(lines, 'zh-CN');
+
+    expect(result.map((line) => line.translated)).toEqual(['短句', '很长的一行']);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
   test('falls back to LibreTranslate after Google returns an invalid response', async () => {
     vi.stubEnv('VITE_LIBRETRANSLATE_BASE_URL', 'http://translate.test');
     vi.stubEnv('VITE_LIBRETRANSLATE_API_KEY', 'test-key');

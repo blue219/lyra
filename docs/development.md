@@ -103,11 +103,11 @@ Google Translate returns the detected source language as part of the primary tra
 
 ## Google Translate behavior
 
-Lyra calls Google Translate's web endpoint first with `client=gtx`, `sl=auto`, and the selected target language. Because the endpoint can merge newline-separated lyric lines, Lyra inserts a stable sentinel line separator before sending text and only accepts the result when the translated text can be split back into the original number of lyric lines.
+Lyra calls Google Translate's web endpoint first with `client=gtx`, `sl=auto`, and the selected target language. Because the endpoint can merge newline-separated lyric lines or reject very long requests, Lyra splits Google requests on lyric line boundaries, keeps each request under a conservative query length limit, and never cuts a lyric line in the middle. Lyra inserts a stable sentinel line separator inside each Google request and only accepts a translated chunk when it can be split back into the same number of lyric lines.
 
 - Google Translate does not require local environment variables.
 - The endpoint is unofficial and may change, become rate limited, or fail without notice.
-- If the detected source language matches the target language, Lyra keeps the original lyrics. If the response format is unexpected, line counts mismatch, or no usable translation is returned, Lyra falls back to LibreTranslate when configured.
+- If the detected source language matches the target language, Lyra keeps the original lyrics. If a chunk's response format is unexpected, line counts mismatch, a single lyric line is too long for the Google limit, or no usable translation is returned, only that chunk falls back to LibreTranslate when configured.
 
 ## LibreTranslate behavior
 
