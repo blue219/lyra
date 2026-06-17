@@ -1,4 +1,8 @@
 import type { LyricLine, LyricsResult } from '../../shared/types';
+import {
+  findSupportedLanguage,
+  supportedLanguages,
+} from '../../shared/supported-languages';
 
 const lineSeparator = '\n';
 const googleTranslateUrl = 'https://translate.googleapis.com/translate_a/single';
@@ -476,35 +480,11 @@ function isMusicalMarkerLine(text: string): boolean {
 }
 
 function toGoogleTranslateLanguage(language: string | undefined): string | null {
-  if (!language) {
-    return null;
-  }
-
-  if (language === 'en-US' || language === 'en') {
-    return 'en';
-  }
-
-  if (language === 'zh-CN' || language === 'zh-Hans' || language === 'zh') {
-    return 'zh-CN';
-  }
-
-  return null;
+  return findSupportedLanguage(language)?.googleCode ?? null;
 }
 
 function toMicrosoftTranslateLanguage(language: string | undefined): string | null {
-  if (!language) {
-    return null;
-  }
-
-  if (language === 'en-US' || language === 'en') {
-    return 'en';
-  }
-
-  if (language === 'zh-CN' || language === 'zh-Hans' || language === 'zh') {
-    return 'zh-Hans';
-  }
-
-  return null;
+  return findSupportedLanguage(language)?.microsoftCode ?? null;
 }
 
 function readGoogleTranslatedText(data: unknown): string {
@@ -617,25 +597,19 @@ class InvalidTranslationResponseError extends Error {
 }
 
 function fromGoogleTranslateLanguage(language: string): string | undefined {
-  if (language === 'en') {
-    return 'en-US';
-  }
-
-  if (language === 'zh-CN' || language === 'zh-Hans' || language === 'zh') {
-    return 'zh-CN';
-  }
-
-  return undefined;
+  return supportedLanguages.find(
+    (supportedLanguage) =>
+      supportedLanguage.value === language ||
+      supportedLanguage.googleCode === language ||
+      supportedLanguage.aliases?.includes(language),
+  )?.value;
 }
 
 function fromMicrosoftTranslateLanguage(language: string): string | undefined {
-  if (language === 'en') {
-    return 'en-US';
-  }
-
-  if (language === 'zh-CN' || language === 'zh-Hans' || language === 'zh') {
-    return 'zh-CN';
-  }
-
-  return undefined;
+  return supportedLanguages.find(
+    (supportedLanguage) =>
+      supportedLanguage.value === language ||
+      supportedLanguage.microsoftCode === language ||
+      supportedLanguage.aliases?.includes(language),
+  )?.value;
 }

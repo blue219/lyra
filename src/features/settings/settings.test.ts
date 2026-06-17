@@ -3,6 +3,21 @@ import { describe, expect, test } from 'vitest';
 import { defaultOverlaySettings, sanitizeOverlaySettings } from './settings';
 
 describe('sanitizeOverlaySettings', () => {
+  const supportedTargetLanguages = [
+    'en-US',
+    'zh-CN',
+    'zh-TW',
+    'ja-JP',
+    'ko-KR',
+    'es-ES',
+    'fr-FR',
+    'de-DE',
+    'pt-BR',
+    'it-IT',
+    'ru-RU',
+    'id-ID',
+  ];
+
   test('falls back to defaults when values are missing or invalid', () => {
     expect(
       sanitizeOverlaySettings({
@@ -10,6 +25,20 @@ describe('sanitizeOverlaySettings', () => {
         fontSize: 'huge',
       }),
     ).toEqual(defaultOverlaySettings);
+  });
+
+  test('preserves every supported target language', () => {
+    supportedTargetLanguages.forEach((targetLanguage) => {
+      expect(
+        sanitizeOverlaySettings({
+          targetLanguage,
+          fontSize: 'md',
+        }),
+      ).toEqual({
+        targetLanguage,
+        fontSize: 'md',
+      });
+    });
   });
 
   test('preserves supported settings values', () => {
@@ -24,17 +53,17 @@ describe('sanitizeOverlaySettings', () => {
     });
   });
 
-  test('falls back from unsupported legacy language values', () => {
+  test('falls back from unsupported language values', () => {
     expect(
       sanitizeOverlaySettings({
-        targetLanguage: 'ja-JP',
+        targetLanguage: 'nl-NL',
         fontSize: 'md',
       }),
     ).toEqual(defaultOverlaySettings);
 
     expect(
       sanitizeOverlaySettings({
-        targetLanguage: 'es-ES',
+        targetLanguage: 'th-TH',
         fontSize: 'md',
       }),
     ).toEqual(defaultOverlaySettings);

@@ -61,6 +61,10 @@ describe('SettingsEntry', () => {
 
     expect(html).toContain('Target language');
     expect(html).toContain('Chinese (Simplified)');
+    expect(html).toContain('Chinese (Traditional)');
+    expect(html).toContain('Japanese');
+    expect(html).toContain('Korean');
+    expect(html).toContain('Spanish');
     expect(html).toContain('Font size');
     expect(html).toContain('Loading lyric translation.');
     expect(html).toContain('right:24px');

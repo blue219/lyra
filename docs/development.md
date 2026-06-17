@@ -48,7 +48,7 @@ The extension manifest grants `storage`, `https://lrclib.net/*`, `https://transl
 - When Spotify lyrics are not available but the current track is readable, Lyra requests synced LRCLIB fallback lyrics.
 - Lyra waits for persisted settings before the first lyrics request so LRCLIB fallback uses the saved target language immediately.
 - Monolingual, translated, and unavailable lyric states remain readable.
-- English and Simplified Chinese target language settings persist across refresh.
+- Supported target language settings persist across refresh.
 - Font size settings persist across refresh.
 
 ## Code organization
@@ -60,7 +60,7 @@ Lyra keeps extension entrypoints in `entrypoints/` and feature code in `src/feat
 - `lyrics`: synced lyric parsing, LRCLIB fallback, lyrics cache, and runtime messages.
 - `translation`: translation provider orchestration, request handling, response parsing, and degradation behavior.
 - `settings`: inline lyric settings defaults and validation.
-- `shared`: cross-feature types and browser extension API helpers.
+- `shared`: cross-feature types, supported language registry, and browser extension API helpers.
 
 ## Spotify lyrics replacement behavior
 

@@ -62,6 +62,46 @@ describe('translateLyricLines', () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
+  test('maps additional target languages for Google Translate', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
+      const url = new URL(String(input));
+
+      expect(url.searchParams.get('tl')).toBe('ja');
+
+      return createGoogleTranslateResponse([
+        'こんにちは\n',
+        `${googleLineSeparator}\n`,
+        '世界',
+      ]);
+    });
+
+    const result = await translateLyricLines(simpleLines, 'ja-JP');
+
+    expect(result.map((line) => line.translated)).toEqual(['こんにちは', '世界']);
+    expect(result.every((line) => line.translatedLanguage === 'ja-JP')).toBe(true);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  test('maps traditional Chinese for Google Translate', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
+      const url = new URL(String(input));
+
+      expect(url.searchParams.get('tl')).toBe('zh-TW');
+
+      return createGoogleTranslateResponse([
+        '你好\n',
+        `${googleLineSeparator}\n`,
+        '世界',
+      ]);
+    });
+
+    const result = await translateLyricLines(simpleLines, 'zh-TW');
+
+    expect(result.map((line) => line.translated)).toEqual(['你好', '世界']);
+    expect(result.every((line) => line.translatedLanguage === 'zh-TW')).toBe(true);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
   test('falls back to Microsoft Translator web when Google is rate limited', async () => {
     const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
       const url = new URL(String(input));
@@ -99,6 +139,32 @@ describe('translateLyricLines', () => {
     expect(microsoftBody.get('key')).toBe('12345');
   });
 
+  test('maps traditional Chinese for Microsoft Translator web', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
+      const url = new URL(String(input));
+
+      if (url.origin === 'https://translate.googleapis.com') {
+        return createJsonResponse({ error: 'rate limited' }, 429);
+      }
+
+      if (url.href === 'https://translator.bing.com/') {
+        return createBingTranslatorPageResponse('MICROSOFT_IG', 'microsoft-token', 12345);
+      }
+
+      return createMicrosoftTranslatorResponse(
+        `你好\n${googleLineSeparator}\n世界`,
+      );
+    });
+
+    const result = await translateLyricLines(simpleLines, 'zh-TW');
+    const microsoftRequest = fetchMock.mock.calls[2];
+    const microsoftBody = new URLSearchParams(String(microsoftRequest?.[1]?.body));
+
+    expect(result.map((line) => line.translated)).toEqual(['你好', '世界']);
+    expect(microsoftBody.get('to')).toBe('zh-Hant');
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+  });
+
   test('falls back to Microsoft Translator web when Google has a network error', async () => {
     const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
       const url = new URL(String(input));
@@ -130,6 +196,29 @@ describe('translateLyricLines', () => {
     const result = await translateLyricLines(simpleLines, 'zh-CN');
 
     expect(result).toEqual(simpleLines);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  test('returns monolingual lyrics when Google detects a matching added language', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      createGoogleTranslateResponse(['こんにちは世界'], 'ja'),
+    );
+
+    const result = await translateLyricsResult(
+      {
+        status: 'monolingual',
+        lines: simpleLines,
+        source: 'spotify',
+      },
+      'ja-JP',
+    );
+
+    expect(result).toEqual({
+      status: 'monolingual',
+      lines: simpleLines,
+      source: 'spotify',
+      sourceLanguage: 'ja-JP',
+    });
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 

@@ -3,6 +3,7 @@ import type { CSSProperties } from 'react';
 import type { OverlayPhase } from './lyrics-flow';
 import type { LyricsResult, OverlaySettings } from '../../shared/types';
 import settingsIconUrl from '../../assets/branding/toolbar/lyra-toolbar-green-transparent.png';
+import { supportedLanguages } from '../../shared/supported-languages';
 
 export interface SettingsAnchor {
   right: number;
@@ -19,10 +20,7 @@ interface SettingsEntryProps {
   onSettingsChange: (patch: Partial<OverlaySettings>) => void;
 }
 
-const languageOptions = [
-  { value: 'en-US', label: 'English' },
-  { value: 'zh-CN', label: 'Chinese (Simplified)' },
-];
+const languageOptions = supportedLanguages.map(({ value, label }) => ({ value, label }));
 
 export function SettingsEntry({
   anchor,

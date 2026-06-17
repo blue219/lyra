@@ -29,7 +29,7 @@ Lyra is a WXT Manifest V3 browser extension for Spotify Web Player.
 | `src/features/lyrics` | LRCLIB lookup, synced lyrics parsing, cache controller, and runtime message contracts. |
 | `src/features/translation` | Translation provider orchestration, language-code mapping, line-boundary validation, and degradation behavior. |
 | `src/features/settings` | Overlay settings defaults and validation. |
-| `src/shared` | Shared types, retry helpers, extension API wrappers, and test utilities. |
+| `src/shared` | Shared types, supported language registry, retry helpers, extension API wrappers, and test utilities. |
 
 ## Lyrics flow
 
@@ -86,7 +86,7 @@ The lyrics cache keeps up to 200 entries. Bilingual and normal monolingual resul
 
 The current settings surface supports:
 
-- Target language: `en-US` or `zh-CN`.
+- Target language: English, Simplified Chinese, Traditional Chinese, Japanese, Korean, Spanish, French, German, Portuguese, Italian, Russian, or Indonesian.
 - Font size: `sm`, `md`, or `lg`.
 
 Unsupported or malformed persisted settings are sanitized back to defaults before use.

@@ -1,7 +1,8 @@
 import type { OverlaySettings } from '../../shared/types';
+import { supportedLanguages } from '../../shared/supported-languages';
 
 const fontSizes = new Set<OverlaySettings['fontSize']>(['sm', 'md', 'lg']);
-const targetLanguages = new Set(['en-US', 'zh-CN']);
+const targetLanguages = new Set(supportedLanguages.map((language) => language.value));
 
 export const defaultOverlaySettings: OverlaySettings = {
   targetLanguage: 'en-US',

@@ -23,7 +23,7 @@
 
 ## Overview
 
-Lyra is a Chromium browser extension for Spotify Web Player. It helps listeners read and understand lyrics in two languages while the song is playing.
+Lyra is a Chromium browser extension for Spotify Web Player. It helps listeners read original lyrics alongside a selected translation language while the song is playing.
 
 Instead of injecting translated text into Spotify's native lyric rows, Lyra visually disables the native lyrics UI, keeps Spotify's DOM available as a data and sync source, and renders its own lyrics page in the same area. When Spotify lyrics are unavailable or unsynced, Lyra can fall back to synced lyrics from [LRCLIB](https://github.com/tranxuanthang/lrclib).
 
