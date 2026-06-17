@@ -10,7 +10,7 @@ Lyra is a WXT Manifest V3 browser extension for Spotify Web Player.
 - The content script mounts Lyra's React replacement lyrics page only when the user is on Spotify's lyrics page or when visible Spotify lyric rows are present.
 - Lyra visually disables Spotify's native lyrics UI and keeps the native DOM available only as the source for lyric text and active-line synchronization.
 - If Spotify lyrics are missing or Spotify marks them as unsynced, the overlay requests synced fallback lyrics from LRCLIB.
-- Google translation and LRCLIB fallback are routed through the background service worker when the extension runtime is available.
+- Translation and LRCLIB fallback are routed through the background service worker when the extension runtime is available.
 - If the background service worker is unavailable during development reloads, the content code falls back to direct LRCLIB or translation calls where practical.
 
 ## Entry points
@@ -27,7 +27,7 @@ Lyra is a WXT Manifest V3 browser extension for Spotify Web Player.
 | `src/features/overlay` | React replacement lyrics page, settings entry, lyrics request orchestration, active-line selection, scroll behavior, and replacement rendering. |
 | `src/features/spotify` | Spotify DOM readers, lyrics page detection, track identity extraction, active line detection, and playback seeking helpers. |
 | `src/features/lyrics` | LRCLIB lookup, synced lyrics parsing, cache controller, and runtime message contracts. |
-| `src/features/translation` | Google Translate web translation, language-code mapping, line-boundary validation, and translation degradation behavior. |
+| `src/features/translation` | Translation provider orchestration, language-code mapping, line-boundary validation, and degradation behavior. |
 | `src/features/settings` | Overlay settings defaults and validation. |
 | `src/shared` | Shared types, retry helpers, extension API wrappers, and test utilities. |
 
@@ -80,7 +80,7 @@ The lyrics cache keeps up to 200 entries. Bilingual and normal monolingual resul
 | --- | --- | --- |
 | Spotify Web Player | Visible lyric DOM, track identity, playback position, and seek interactions. | Content script match: `https://open.spotify.com/*`. |
 | LRCLIB | Synced fallback lyrics when Spotify lyrics are missing or unsynced. Lyra uses the public `https://lrclib.net/api` service through HTTP requests. | Host permission: `https://lrclib.net/*`; see `docs/lrclib-api.md`. |
-| Google Translate web endpoint | Primary bilingual translation path. Lyra calls the web endpoint directly and validates lyric line boundaries before using the result. | Host permission: `https://translate.googleapis.com/*`; no environment variable is required. |
+| Translation provider chain | Primary bilingual translation path. Lyra calls Google Translate first, then Microsoft Translator and Bing Translator web endpoints for failed chunks, and validates lyric line boundaries before using any result. | Host permissions: `https://translate.googleapis.com/*`, `https://translator.bing.com/*`, `https://www.bing.com/*`; no environment variable is required. |
 
 ## Settings
 
@@ -96,5 +96,5 @@ Unsupported or malformed persisted settings are sanitized back to defaults befor
 - Lyra does not open Spotify's lyrics panel automatically.
 - Spotify-sourced lyrics do not expose LRCLIB-style timestamps, so Spotify's native active-line signal drives sync for that source.
 - LRCLIB line clicks seek Spotify playback by timestamp; Spotify-sourced line clicks delegate to Spotify's native lyric row click behavior.
-- Google Translate uses an unofficial web endpoint that can change or become rate limited.
+- Translation uses unofficial web endpoints that can change or become rate limited.
 - Translation is skipped when provider requests fail, source detection fails, a language pair is unsupported, or translated line counts do not match original line counts.

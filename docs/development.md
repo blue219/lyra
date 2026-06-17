@@ -4,7 +4,7 @@
 
 Lyra injects a content script into `https://open.spotify.com/*`, but it does not inject translated text into Spotify's native lyric rows. On Spotify's lyrics page, Lyra visually disables Spotify's native lyrics UI, keeps the native DOM available only as a data and active-line sync source, and renders its own React replacement lyrics page in the same lyrics area. If Spotify lyrics are unavailable or Spotify marks them as unsynced, Lyra falls back to synced LRCLIB lyrics for the current track.
 
-Translation uses Google Translate's web endpoint. If Google translation is unavailable or cannot preserve lyric line boundaries, Spotify's original lyrics remain unchanged.
+Translation uses Google Translate's web endpoint first, then falls back to Microsoft Translator and Bing Translator web endpoints for failed lyric chunks. If no provider can preserve lyric line boundaries, Spotify's original lyrics remain unchanged.
 
 ## Manual loading
 
@@ -32,12 +32,12 @@ Translation uses Google Translate's web endpoint. If Google translation is unava
 
 Lyra does not require local environment variables for translation.
 
-The extension manifest grants `storage`, `https://lrclib.net/*`, and `https://translate.googleapis.com/*`.
+The extension manifest grants `storage`, `https://lrclib.net/*`, `https://translate.googleapis.com/*`, `https://translator.bing.com/*`, and `https://www.bing.com/*`.
 
 ## Manual smoke checklist
 
 - Lyra's replacement lyrics page renders only on Spotify Web Player's lyrics page.
-- Visible Spotify lyrics are the preferred source and are translated through Google.
+- Visible Spotify lyrics are the preferred source and are translated through the provider chain.
 - Spotify lyrics that show the "These lyrics aren't synced to the song yet." notice fall back to LRCLIB when track metadata is available.
 - Native Spotify lyric text is visually hidden while Lyra's own original and translated lyric page appears in the same lyrics area.
 - Lyra shows a small English source label above the lyrics: `Source: Native`, `Source: LRCLIB`, or `No lyrics available`.
@@ -58,7 +58,7 @@ Lyra keeps extension entrypoints in `entrypoints/` and feature code in `src/feat
 - `overlay`: lyrics page replacement rendering, settings entry UI, and content-script state orchestration.
 - `spotify`: Spotify Web Player DOM readers and track identity helpers.
 - `lyrics`: synced lyric parsing, LRCLIB fallback, lyrics cache, and runtime messages.
-- `translation`: Google Translate request and response handling.
+- `translation`: translation provider orchestration, request handling, response parsing, and degradation behavior.
 - `settings`: inline lyric settings defaults and validation.
 - `shared`: cross-feature types and browser extension API helpers.
 
@@ -91,16 +91,16 @@ Concurrent requests for the same cache key share one in-flight lyrics request. S
 
 ## Source language detection
 
-Google Translate returns the detected source language as part of the translation response. Lyra maps supported detected language codes back to overlay language values and treats that value as the source language for the whole lyrics result. If detection fails, returns an unsupported language, or matches the selected target language, Lyra keeps showing original lyrics.
+Translation providers return the detected source language as part of their responses. Lyra maps supported detected language codes back to overlay language values and treats that value as the source language for the whole lyrics result. If detection fails, returns an unsupported language, or matches the selected target language, Lyra keeps showing original lyrics.
 
-## Google Translate behavior
+## Translation provider behavior
 
-Lyra calls Google Translate's web endpoint first with `client=gtx`, `sl=auto`, and the selected target language. Because the endpoint can merge newline-separated lyric lines or reject very long requests, Lyra splits Google requests on lyric line boundaries, keeps each request under a conservative query length limit, and never cuts a lyric line in the middle. Lyra inserts a stable sentinel line separator inside each Google request and only accepts a translated chunk when it can be split back into the same number of lyric lines.
+Lyra calls Google Translate's web endpoint first with `client=gtx`, `sl=auto`, and the selected target language. Failed Google chunks fall back to Microsoft Translator through `https://translator.bing.com/`, then Bing Translator through `https://www.bing.com/translator`. Lyra inserts a stable sentinel line separator inside each request and only accepts a translated chunk when it can be split back into the same number of lyric lines.
 
-- Google Translate does not require local environment variables.
-- The endpoint is unofficial and may change, become rate limited, or fail without notice.
+- Translation providers do not require local environment variables.
+- The web endpoints are unofficial and may change, become rate limited, or fail without notice.
 - If the detected source language matches the target language, Lyra keeps the original lyrics.
-- If a chunk's response format is unexpected, line counts mismatch, a single lyric line is too long for the Google limit, or no usable translation is returned, Lyra keeps the original lyrics for that chunk.
+- If a chunk's response format is unexpected, line counts mismatch, a single lyric line is too long for the translation limit, or no usable translation is returned by any provider, Lyra keeps the original lyrics for that chunk.
 - Translated lyric text is cleaned of ASS/SSA style override tags before display.
 - Pure musical marker lines such as `♪` keep the same marker as their translation.
 - On unsupported languages, request failures, response format errors, or line-count mismatches, Lyra keeps showing original lyrics.
@@ -108,6 +108,6 @@ Lyra calls Google Translate's web endpoint first with `client=gtx`, `sl=auto`, a
 ## Troubleshooting
 
 - If no Lyra UI appears, confirm the extension is loaded from `.output/chrome-mv3`, the current page matches `https://open.spotify.com/*`, and Spotify's lyrics view is open.
-- If original lyrics appear but translations do not, check whether `https://translate.googleapis.com/*` requests are blocked.
+- If original lyrics appear but translations do not, check whether `https://translate.googleapis.com/*`, `https://translator.bing.com/*`, or `https://www.bing.com/*` requests are blocked.
 - If the extension stops responding after a development reload, refresh the Spotify tab so the current content script reconnects to the latest background service worker.
 - If LRCLIB fallback never appears, confirm the current Spotify track title and artists are readable in the page and that `https://lrclib.net/*` requests are not blocked by the browser or network.

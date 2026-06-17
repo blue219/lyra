@@ -24,6 +24,8 @@ export default defineConfig({
     host_permissions: [
       'https://lrclib.net/*',
       'https://translate.googleapis.com/*',
+      'https://translator.bing.com/*',
+      'https://www.bing.com/*',
     ],
   },
   vite: () => ({

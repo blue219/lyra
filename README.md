@@ -10,7 +10,7 @@
 
 <p align="center">
   Lyra replaces Spotify's lyrics view with a clean React-powered bilingual lyrics page,
-  backed by Spotify's native lyric sync, LRCLIB fallback lyrics, and Google Translate.
+  backed by Spotify's native lyric sync, LRCLIB fallback lyrics, and a web translation provider chain.
 </p>
 
 <p align="center">
@@ -27,7 +27,7 @@ Lyra is a Chromium browser extension for Spotify Web Player. It helps listeners 
 
 Instead of injecting translated text into Spotify's native lyric rows, Lyra visually disables the native lyrics UI, keeps Spotify's DOM available as a data and sync source, and renders its own lyrics page in the same area. When Spotify lyrics are unavailable or unsynced, Lyra can fall back to synced lyrics from [LRCLIB](https://github.com/tranxuanthang/lrclib).
 
-Translation uses Google Translate's web endpoint. When Google translation is unavailable or cannot preserve lyric line boundaries, Lyra keeps showing the original lyrics.
+Translation uses Google Translate's web endpoint first, then falls back to Microsoft Translator and Bing Translator web endpoints for failed lyric chunks. When no provider can preserve lyric line boundaries, Lyra keeps showing the original lyrics.
 
 ## Features
 
@@ -50,7 +50,7 @@ Translation uses Google Translate's web endpoint. When Google translation is una
 | Build tooling | Vite 8 |
 | Testing | Vitest, jsdom |
 | Lyrics source | Spotify Web Player DOM, LRCLIB |
-| Translation | Google Translate web endpoint |
+| Translation | Google, Microsoft Translator, and Bing Translator web endpoints |
 
 ## Project Structure
 
@@ -97,7 +97,7 @@ Load the unpacked extension:
 
 ## Configuration
 
-Lyra does not require local environment variables for translation. The generated extension manifest grants access to LRCLIB and Google Translate through static host permissions.
+Lyra does not require local environment variables for translation. The generated extension manifest grants access to LRCLIB, Google Translate, Microsoft Translator, and Bing Translator through static host permissions.
 
 ## Available Scripts
 
@@ -132,7 +132,7 @@ For browser-level validation, load `.output/chrome-mv3`, open Spotify Web Player
 
 - Lyra does not open Spotify's lyrics panel automatically.
 - Spotify-sourced lyrics use Spotify's native active-line signal rather than LRCLIB timestamps.
-- Google Translate uses an unofficial web endpoint and can change or become rate limited.
+- Translation uses unofficial web endpoints that can change, fail, or become rate limited.
 - Translation is skipped when provider requests fail, language detection fails, the language pair is unsupported, or translated line counts do not match original lines.
 
 ## Contributing
