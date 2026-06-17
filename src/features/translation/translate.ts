@@ -1,5 +1,4 @@
 import type { LyricLine, LyricsResult } from '../../shared/types';
-import { retryWithBackoff } from '../../shared/retry';
 
 const lineSeparator = '\n';
 const googleTranslateUrl = 'https://translate.googleapis.com/translate_a/single';
@@ -68,7 +67,7 @@ async function translateLyricLinesWithDetection(
     };
   }
 
-  return translateWithLibreTranslate(lines, targetLanguage, googleResult.sourceLanguage);
+  return { lines, sourceLanguage: googleResult.sourceLanguage };
 }
 
 async function translateWithGoogleWeb(
@@ -91,15 +90,6 @@ async function translateWithGoogleWeb(
   for (const chunk of chunks) {
     if (chunk.skipGoogle) {
       hasAnyGoogleFailure = true;
-      const fallbackResult = await translateWithLibreTranslate(
-        chunk.lines,
-        targetLanguage,
-        sourceLanguage,
-      );
-
-      sourceLanguage = sourceLanguage ?? fallbackResult.sourceLanguage;
-      replaceLinesAt(nextLines, chunk.startIndex, fallbackResult.lines);
-      hasAnyTranslation ||= fallbackResult.lines.some((line) => Boolean(line.translated));
       continue;
     }
 
@@ -127,15 +117,6 @@ async function translateWithGoogleWeb(
     }
 
     hasAnyGoogleFailure = true;
-    const fallbackResult = await translateWithLibreTranslate(
-      chunk.lines,
-      targetLanguage,
-      sourceLanguage,
-    );
-
-    sourceLanguage = sourceLanguage ?? fallbackResult.sourceLanguage;
-    replaceLinesAt(nextLines, chunk.startIndex, fallbackResult.lines);
-    hasAnyTranslation ||= fallbackResult.lines.some((line) => Boolean(line.translated));
   }
 
   if (hasAnyTranslation) {
@@ -147,11 +128,7 @@ async function translateWithGoogleWeb(
   }
 
   if (hasAnyGoogleFailure) {
-    return {
-      status: 'translated',
-      lines: nextLines,
-      sourceLanguage,
-    };
+    return { status: 'failed', sourceLanguage };
   }
 
   return { status: 'failed', sourceLanguage };
@@ -209,7 +186,7 @@ async function translateGoogleLineChunk(
     };
   } catch (error) {
     console.warn(
-      '[Lyra] Google Translate chunk failed, falling back to LibreTranslate:',
+      '[Lyra] Google Translate chunk failed, showing original lyrics for that chunk:',
       error,
     );
     return { status: 'failed' };
@@ -295,111 +272,6 @@ function replaceLinesAt(
   });
 }
 
-async function translateWithLibreTranslate(
-  lines: LyricLine[],
-  targetLanguage: string,
-  fallbackSourceLanguage?: string,
-): Promise<{ lines: LyricLine[]; sourceLanguage?: string }> {
-  const targetCode = toLibreTranslateLanguage(targetLanguage);
-
-  if (!targetCode) {
-    return { lines, sourceLanguage: fallbackSourceLanguage };
-  }
-
-  const apiKey = getLibreTranslateApiKey();
-
-  if (!apiKey) {
-    console.warn('[Lyra] LibreTranslate API key is missing');
-    return { lines, sourceLanguage: fallbackSourceLanguage };
-  }
-
-  const baseUrl = getLibreTranslateBaseUrl();
-
-  if (!baseUrl) {
-    console.warn('[Lyra] LibreTranslate base URL is missing');
-    return { lines, sourceLanguage: fallbackSourceLanguage };
-  }
-
-  const sourceLanguage =
-    fallbackSourceLanguage ?? (await detectLyricsSourceLanguage(lines, apiKey, baseUrl));
-  const sourceCode = toLibreTranslateLanguage(sourceLanguage);
-
-  if (!sourceLanguage || !sourceCode || sourceCode === targetCode) {
-    return {
-      lines,
-      sourceLanguage,
-    };
-  }
-
-  try {
-    const response = await retryWithBackoff({
-      operation: async () => {
-        const nextResponse = await fetch(`${baseUrl}/translate`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            q: lines.map((line) => line.original).join(lineSeparator),
-            source: sourceCode,
-            target: targetCode,
-            format: 'text',
-            api_key: apiKey,
-          }),
-        });
-
-        if (!nextResponse.ok) {
-          throw new HttpStatusError(
-            `LibreTranslate request failed: ${nextResponse.status}`,
-            nextResponse.status,
-          );
-        }
-
-        return nextResponse;
-      },
-      shouldRetry: isTransientRequestError,
-      onRetry: ({ attempt, maxAttempts, delayMs, error }) => {
-        console.warn(
-          `[Lyra] Translation request transient failure on attempt ${attempt}/${maxAttempts}; retrying in ${delayMs}ms:`,
-          error,
-        );
-      },
-    });
-
-    const data: unknown = await response.json();
-
-    if (
-      !data ||
-      typeof data !== 'object' ||
-      typeof (data as { translatedText?: unknown }).translatedText !== 'string'
-    ) {
-      throw new Error('Unexpected LibreTranslate response format');
-    }
-
-    const translatedLines = (data as { translatedText: string }).translatedText.split(
-      lineSeparator,
-    );
-
-    if (translatedLines.length !== lines.length) {
-      console.warn(
-        `[Lyra] Translation line count mismatch (got ${translatedLines.length}, expected ${lines.length})`,
-      );
-      return { lines, sourceLanguage };
-    }
-
-    return {
-      lines: applyTranslatedLines(lines, translatedLines, targetLanguage),
-      sourceLanguage,
-    };
-  } catch (error) {
-    console.warn(
-      '[Lyra] Translation failed after retry exhaustion or a non-retryable error, showing original lyrics:',
-      error,
-    );
-    return { lines, sourceLanguage };
-  }
-}
-
 function applyTranslatedLines(
   lines: LyricLine[],
   translatedLines: string[],
@@ -423,22 +295,6 @@ function normalizeTranslatedLyricText(line: LyricLine, text: string): string {
 
 function isMusicalMarkerLine(text: string): boolean {
   return /^[\s♪♫♬♩]+$/u.test(text);
-}
-
-function toLibreTranslateLanguage(language: string | undefined): string | null {
-  if (!language) {
-    return null;
-  }
-
-  if (language === 'en-US' || language === 'en') {
-    return 'en';
-  }
-
-  if (language === 'zh-CN' || language === 'zh-Hans') {
-    return 'zh-Hans';
-  }
-
-  return null;
 }
 
 function toGoogleTranslateLanguage(language: string | undefined): string | null {
@@ -481,71 +337,6 @@ function readGoogleSourceLanguage(data: unknown): string | undefined {
   return fromGoogleTranslateLanguage(data[2]);
 }
 
-async function detectLyricsSourceLanguage(
-  lines: LyricLine[],
-  apiKey: string,
-  baseUrl: string,
-): Promise<string | undefined> {
-  try {
-    const response = await retryWithBackoff({
-      operation: async () => {
-        const nextResponse = await fetch(`${baseUrl}/detect`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            q: lines.map((line) => line.original).join(lineSeparator),
-            api_key: apiKey,
-          }),
-        });
-
-        if (!nextResponse.ok) {
-          throw new HttpStatusError(
-            `LibreTranslate detect request failed: ${nextResponse.status}`,
-            nextResponse.status,
-          );
-        }
-
-        return nextResponse;
-      },
-      shouldRetry: isTransientRequestError,
-      onRetry: ({ attempt, maxAttempts, delayMs, error }) => {
-        console.warn(
-          `[Lyra] Language detection transient failure on attempt ${attempt}/${maxAttempts}; retrying in ${delayMs}ms:`,
-          error,
-        );
-      },
-    });
-
-    const data: unknown = await response.json();
-
-    const detectedLanguage = Array.isArray(data)
-      ? (data[0] as { language?: unknown } | undefined)?.language
-      : (data as { language?: unknown } | null)?.language;
-
-    if (typeof detectedLanguage !== 'string') {
-      throw new Error('Unexpected LibreTranslate detect response format');
-    }
-
-    return fromLibreTranslateLanguage(detectedLanguage);
-  } catch (error) {
-    console.warn(
-      '[Lyra] Language detection failed after retry exhaustion or a non-retryable error, showing original lyrics:',
-      error,
-    );
-    return undefined;
-  }
-}
-
-function isTransientRequestError(error: unknown): boolean {
-  return error instanceof TypeError || isRetryableHttpStatusError(error);
-}
-
-function isRetryableHttpStatusError(error: unknown): boolean {
-  return error instanceof HttpStatusError && (error.status === 429 || error.status >= 500);
-}
-
 class HttpStatusError extends Error {
   constructor(
     message: string,
@@ -554,18 +345,6 @@ class HttpStatusError extends Error {
     super(message);
     this.name = 'HttpStatusError';
   }
-}
-
-function fromLibreTranslateLanguage(language: string): string | undefined {
-  if (language === 'en') {
-    return 'en-US';
-  }
-
-  if (language === 'zh-Hans') {
-    return 'zh-CN';
-  }
-
-  return undefined;
 }
 
 function fromGoogleTranslateLanguage(language: string): string | undefined {
@@ -578,17 +357,4 @@ function fromGoogleTranslateLanguage(language: string): string | undefined {
   }
 
   return undefined;
-}
-
-function getLibreTranslateBaseUrl(): string | undefined {
-  const value = (import.meta.env.VITE_LIBRETRANSLATE_BASE_URL as string | undefined)
-    ?.replace(/\/+$/, '')
-    .trim();
-
-  return value || undefined;
-}
-
-function getLibreTranslateApiKey(): string | undefined {
-  const value = import.meta.env.VITE_LIBRETRANSLATE_API_KEY as string | undefined;
-  return value?.trim() || undefined;
 }

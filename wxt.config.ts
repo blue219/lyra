@@ -1,9 +1,5 @@
 import tailwindcss from '@tailwindcss/vite';
 import { defineConfig } from 'wxt';
-import { existsSync, readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
-
-const libreTranslateHostPermission = getLibreTranslateHostPermission();
 
 export default defineConfig({
   modules: ['@wxt-dev/module-react'],
@@ -28,8 +24,6 @@ export default defineConfig({
     host_permissions: [
       'https://lrclib.net/*',
       'https://translate.googleapis.com/*',
-      'http://localhost:5000/*',
-      ...(libreTranslateHostPermission ? [libreTranslateHostPermission] : []),
     ],
   },
   vite: () => ({
@@ -39,34 +33,3 @@ export default defineConfig({
     },
   }),
 });
-
-function getLibreTranslateHostPermission(): string | undefined {
-  const baseUrl =
-    process.env.VITE_LIBRETRANSLATE_BASE_URL ?? readEnvValue('VITE_LIBRETRANSLATE_BASE_URL');
-
-  if (!baseUrl) {
-    return undefined;
-  }
-
-  try {
-    const url = new URL(baseUrl);
-    return `${url.origin}/*`;
-  } catch {
-    return undefined;
-  }
-}
-
-function readEnvValue(name: string): string | undefined {
-  const envPath = resolve(process.cwd(), '.env');
-
-  if (!existsSync(envPath)) {
-    return undefined;
-  }
-
-  const line = readFileSync(envPath, 'utf8')
-    .split(/\r?\n/)
-    .find((nextLine) => nextLine.trimStart().startsWith(`${name}=`));
-
-  const value = line?.slice(line.indexOf('=') + 1).trim();
-  return value || undefined;
-}
