@@ -91,7 +91,7 @@ Concurrent requests for the same cache key share one in-flight lyrics request. S
 
 ## Source language detection
 
-Translation providers return the detected source language as part of their responses. Lyra maps supported detected language codes back to overlay language values and treats that value as the source language for the whole lyrics result. If detection fails, returns an unsupported language, or matches the selected target language, Lyra keeps showing original lyrics.
+Translation providers return the detected source language as part of their responses. Lyra maps supported detected language codes back to overlay language values and treats that value as the source language for the whole lyrics result. If a lyrics result already has a supported source language that matches the selected target language, Lyra skips translation requests and keeps showing original lyrics. If detection fails, returns an unsupported language, matches the selected target language after a provider request, or returns text that matches the original lyric text, Lyra keeps showing original lyrics.
 
 ## Translation provider behavior
 
@@ -99,7 +99,9 @@ Lyra calls Google Translate's web endpoint first with `client=gtx`, `sl=auto`, a
 
 - Translation providers do not require local environment variables.
 - The web endpoints are unofficial and may change, become rate limited, or fail without notice.
+- If the existing source language already matches the target language, Lyra skips provider requests.
 - If the detected source language matches the target language, Lyra keeps the original lyrics.
+- If translated text matches the original lyric text, Lyra hides that duplicate translation and does not cache all-duplicate translation results.
 - If a chunk's response format is unexpected, line counts mismatch, a single lyric line is too long for the translation limit, or no usable translation is returned by any provider, Lyra keeps the original lyrics for that chunk.
 - Translated lyric text is cleaned of ASS/SSA style override tags before display.
 - Pure musical marker lines such as `♪` keep the same marker as their translation.

@@ -302,6 +302,15 @@ describe('createLyricsCacheController', () => {
         };
       }
 
+      if (original === 'Same language alias') {
+        return {
+          status: 'monolingual',
+          source: 'spotify',
+          sourceLanguage: 'zh-Hans',
+          lines: [{ timeMs: 0, original }],
+        };
+      }
+
       return {
         status: 'monolingual',
         source: 'spotify',
@@ -320,6 +329,7 @@ describe('createLyricsCacheController', () => {
       'Unavailable',
       'Transient unavailable',
       'Same language',
+      'Same language alias',
       'Degraded',
     ]) {
       await controller.handleTranslateLyrics({
@@ -335,7 +345,8 @@ describe('createLyricsCacheController', () => {
     expect(getExpiresAtByReason(storage, 'not-found')).toBe(6_100);
     expect(getExpiresAtByReason(storage, 'network-error')).toBe(61_200);
     expect(getExpiresAtByOriginal(storage, 'Same language')).toBe(31_300);
-    expect(getExpiresAtByOriginal(storage, 'Degraded')).toBe(3_400);
+    expect(getExpiresAtByOriginal(storage, 'Same language alias')).toBe(31_400);
+    expect(getExpiresAtByOriginal(storage, 'Degraded')).toBe(3_500);
   });
 
   test('does not store raw Spotify lyric text in translation cache keys', async () => {
@@ -356,6 +367,32 @@ describe('createLyricsCacheController', () => {
 
     expect(entries[0].key).toMatch(/^spotify__zh-CN__1__/);
     expect(entries[0].key).not.toContain('A very specific lyric line');
+  });
+
+  test('does not cache translation results that match the original lyric text', async () => {
+    const storage = createStorage();
+    const controller = createController({
+      storage,
+      translateLyrics: vi.fn(async (result: LyricsResult) => ({
+        ...result,
+        translationSkippedReason: 'same-text',
+      }) satisfies LyricsResult),
+    });
+
+    await expect(
+      controller.handleTranslateLyrics({
+        type: 'lyra:translateLyrics',
+        lines: [originalLine],
+        targetLanguage: 'zh-CN',
+        source: 'spotify',
+      }),
+    ).resolves.toEqual({
+      status: 'monolingual',
+      source: 'spotify',
+      translationSkippedReason: 'same-text',
+      lines: [originalLine],
+    });
+    expect(storage.state[storageKey]).toEqual([]);
   });
 
   test('returns lyrics when persistence fails', async () => {

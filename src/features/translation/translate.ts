@@ -1,8 +1,10 @@
 import type { LyricLine, LyricsResult } from '../../shared/types';
 import {
   findSupportedLanguage,
+  isSameSupportedLanguage,
   supportedLanguages,
 } from '../../shared/supported-languages';
+import { isSameLyricText } from '../../shared/lyric-text';
 
 const lineSeparator = '\n';
 const googleTranslateUrl = 'https://translate.googleapis.com/translate_a/single';
@@ -15,6 +17,7 @@ const googleTranslateMaxQueryLength = 1_800;
 type TranslationAttemptResult =
   | { status: 'translated'; lines: LyricLine[]; sourceLanguage?: string }
   | { status: 'same-language'; lines: LyricLine[]; sourceLanguage?: string }
+  | { status: 'same-text'; lines: LyricLine[]; sourceLanguage?: string }
   | {
       status: 'failed' | 'rate-limited' | 'invalid-response';
       sourceLanguage?: string;
@@ -50,6 +53,15 @@ export async function translateLyricsResult(
     return result;
   }
 
+  if (isSameSupportedLanguage(result.sourceLanguage, targetLanguage)) {
+    return {
+      ...result,
+      status: 'monolingual',
+      translationSkippedReason: 'same-language',
+      lines: result.lines.map(({ translated, translatedLanguage, ...line }) => line),
+    };
+  }
+
   const translationResult = await translateLyricLinesWithDetection(
     result.lines,
     targetLanguage,
@@ -60,6 +72,11 @@ export async function translateLyricsResult(
   return {
     ...result,
     sourceLanguage: translationResult.sourceLanguage,
+    translationSkippedReason:
+      translationResult.status === 'same-text' ||
+      translationResult.status === 'same-language'
+        ? translationResult.status
+        : undefined,
     status: hasAnyTranslation ? 'bilingual' : 'monolingual',
     lines: translatedLines,
   };
@@ -78,24 +95,34 @@ export async function translateLyricLines(
 async function translateLyricLinesWithDetection(
   lines: LyricLine[],
   targetLanguage: string,
-): Promise<{ lines: LyricLine[]; sourceLanguage?: string }> {
+): Promise<{
+  lines: LyricLine[];
+  sourceLanguage?: string;
+  status: TranslationAttemptResult['status'];
+}> {
   if (lines.length === 0) {
-    return { lines };
+    return { lines, status: 'failed' };
   }
 
   const translationResult = await translateWithProviderChain(lines, targetLanguage);
 
   if (
     translationResult.status === 'translated' ||
-    translationResult.status === 'same-language'
+    translationResult.status === 'same-language' ||
+    translationResult.status === 'same-text'
   ) {
     return {
       lines: translationResult.lines,
       sourceLanguage: translationResult.sourceLanguage,
+      status: translationResult.status,
     };
   }
 
-  return { lines, sourceLanguage: translationResult.sourceLanguage };
+  return {
+    lines,
+    sourceLanguage: translationResult.sourceLanguage,
+    status: translationResult.status,
+  };
 }
 
 async function translateWithProviderChain(
@@ -124,6 +151,7 @@ async function translateWithProviderChain(
 
   let sourceLanguage: string | undefined;
   let hasAnyTranslation = false;
+  let hasAnySameText = false;
   let pendingChunks = translatableChunks;
   let lastFailureStatus: TranslationAttemptResult['status'] = 'failed';
 
@@ -140,6 +168,11 @@ async function translateWithProviderChain(
           lines,
           sourceLanguage: chunkResult.sourceLanguage,
         };
+      }
+
+      if (chunkResult.status === 'same-text') {
+        hasAnySameText = true;
+        continue;
       }
 
       if (chunkResult.status === 'translated') {
@@ -165,6 +198,14 @@ async function translateWithProviderChain(
     return {
       status: 'translated',
       lines: nextLines,
+      sourceLanguage,
+    };
+  }
+
+  if (hasAnySameText && pendingChunks.length === 0) {
+    return {
+      status: 'same-text',
+      lines,
       sourceLanguage,
     };
   }
@@ -219,7 +260,11 @@ async function translateGoogleLineChunk(
     const hasAnyTranslation = nextLines.some((line) => Boolean(line.translated));
 
     if (!hasAnyTranslation) {
-      throw new Error('Google Translate returned no usable lyric translations');
+      return {
+        status: 'same-text',
+        lines,
+        sourceLanguage,
+      };
     }
 
     return {
@@ -293,9 +338,11 @@ function createBingWebProvider(config: BingWebProviderConfig): TranslationProvid
       const hasAnyTranslation = nextLines.some((line) => Boolean(line.translated));
 
       if (!hasAnyTranslation) {
-        throw new InvalidTranslationResponseError(
-          `${config.name} returned no usable lyric translations`,
-        );
+        return {
+          status: 'same-text',
+          lines,
+          sourceLanguage,
+        };
       }
 
       return {
@@ -459,12 +506,19 @@ function applyTranslatedLines(
   translatedLines: string[],
   targetLanguage: string,
 ): LyricLine[] {
-  return lines.map((line, index) => ({
-    ...line,
-    translated:
-      normalizeTranslatedLyricText(line, translatedLines[index] ?? '') || undefined,
-    translatedLanguage: targetLanguage,
-  }));
+  return lines.map((line, index) => {
+    const translated = normalizeTranslatedLyricText(line, translatedLines[index] ?? '');
+
+    if (!translated || isSameLyricText(line.original, translated)) {
+      return line;
+    }
+
+    return {
+      ...line,
+      translated,
+      translatedLanguage: targetLanguage,
+    };
+  });
 }
 
 function normalizeTranslatedLyricText(line: LyricLine, text: string): string {

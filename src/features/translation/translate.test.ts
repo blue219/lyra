@@ -102,6 +102,68 @@ describe('translateLyricLines', () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
+  test('omits provider translations that match the original lyric text', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation(async () =>
+      createGoogleTranslateResponse([
+        '蜻蜓落在露水旁乘凉\n',
+        `${googleLineSeparator}\n`,
+        '世界',
+      ]),
+    );
+
+    const result = await translateLyricLines(
+      [
+        { timeMs: 1_000, original: '蜻蜓落在露水旁乘凉' },
+        { timeMs: 3_000, original: 'World' },
+      ],
+      'zh-CN',
+    );
+
+    expect(result).toEqual([
+      { timeMs: 1_000, original: '蜻蜓落在露水旁乘凉' },
+      {
+        timeMs: 3_000,
+        original: 'World',
+        translated: '世界',
+        translatedLanguage: 'zh-CN',
+      },
+    ]);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  test('keeps lyrics monolingual when every provider translation matches the original text', async () => {
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async () =>
+      createGoogleTranslateResponse([
+        '蜻蜓落在露水旁乘凉\n',
+        `${googleLineSeparator}\n`,
+        '露水凉',
+      ]),
+    );
+
+    const result = await translateLyricsResult(
+      {
+        status: 'monolingual',
+        source: 'spotify',
+        lines: [
+          { timeMs: 1_000, original: '蜻蜓落在露水旁乘凉' },
+          { timeMs: 3_000, original: '露水凉' },
+        ],
+      },
+      'zh-CN',
+    );
+
+    expect(result).toEqual({
+      status: 'monolingual',
+      source: 'spotify',
+      sourceLanguage: 'en-US',
+      translationSkippedReason: 'same-text',
+      lines: [
+        { timeMs: 1_000, original: '蜻蜓落在露水旁乘凉' },
+        { timeMs: 3_000, original: '露水凉' },
+      ],
+    });
+  });
+
   test('falls back to Microsoft Translator web when Google is rate limited', async () => {
     const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
       const url = new URL(String(input));
@@ -218,8 +280,59 @@ describe('translateLyricLines', () => {
       lines: simpleLines,
       source: 'spotify',
       sourceLanguage: 'ja-JP',
+      translationSkippedReason: 'same-language',
     });
     expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  test('skips provider requests when the existing source language matches the target language', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockRejectedValue(
+      new Error('Provider should not be called for same-language lyrics'),
+    );
+
+    const result = await translateLyricsResult(
+      {
+        status: 'monolingual',
+        lines: simpleLines,
+        source: 'spotify',
+        sourceLanguage: 'ja-JP',
+      },
+      'ja-JP',
+    );
+
+    expect(result).toEqual({
+      status: 'monolingual',
+      lines: simpleLines,
+      source: 'spotify',
+      sourceLanguage: 'ja-JP',
+      translationSkippedReason: 'same-language',
+    });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  test('skips provider requests when the existing source language is a target language alias', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockRejectedValue(
+      new Error('Provider should not be called for same-language aliases'),
+    );
+
+    const result = await translateLyricsResult(
+      {
+        status: 'monolingual',
+        lines: simpleLines,
+        source: 'spotify',
+        sourceLanguage: 'zh-Hans',
+      },
+      'zh-CN',
+    );
+
+    expect(result).toEqual({
+      status: 'monolingual',
+      lines: simpleLines,
+      source: 'spotify',
+      sourceLanguage: 'zh-Hans',
+      translationSkippedReason: 'same-language',
+    });
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   test('splits Google requests on lyric line boundaries when the query would be too long', async () => {
@@ -446,6 +559,7 @@ describe('translateLyricLines', () => {
       lines: simpleLines,
       source: 'spotify',
       sourceLanguage: 'zh-CN',
+      translationSkippedReason: 'same-language',
     });
     expect(fetchMock).toHaveBeenCalledTimes(3);
   });
@@ -500,8 +614,6 @@ describe('translateLyricLines', () => {
       {
         timeMs: 3_000,
         original: '♪',
-        translated: '♪',
-        translatedLanguage: 'zh-CN',
       },
     ]);
   });

@@ -3,6 +3,7 @@ import {
   requestOriginalLyrics,
   requestTranslatedLyrics,
 } from '../lyrics/messages';
+import { isSameSupportedLanguage } from '../../shared/supported-languages';
 import type {
   LyricLine,
   LyricsResult,
@@ -288,6 +289,13 @@ export async function loadLyricsSelection({
     if (fetchedLyrics.status === 'unavailable' || fetchedLyrics.lines.length === 0) {
       return {
         phase: 'unavailable',
+        lyrics: fetchedLyrics,
+      };
+    }
+
+    if (isSameSupportedLanguage(fetchedLyrics.sourceLanguage, targetLanguage)) {
+      return {
+        phase: 'ready',
         lyrics: fetchedLyrics,
       };
     }

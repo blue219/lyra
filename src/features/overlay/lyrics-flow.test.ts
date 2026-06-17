@@ -209,6 +209,50 @@ describe('loadLyricsSelection', () => {
     expect(result.lyrics.status).toBe('bilingual');
   });
 
+  test('skips LRCLIB translation when fetched lyrics already match the target language', async () => {
+    const snapshots: Array<{ phase: string; lineCount: number }> = [];
+
+    const result = await loadLyricsSelection({
+      selection: {
+        type: 'lrclib',
+        track,
+      },
+      targetLanguage: 'ja-JP',
+      requestOriginalLyricsFn: async () => ({
+        status: 'monolingual',
+        source: 'lrclib',
+        sourceLanguage: 'ja-JP',
+        lines: [
+          { timeMs: 0, original: '最初' },
+          { timeMs: 1_000, original: '二番目' },
+        ],
+      }),
+      requestTranslatedLyricsFn: async () => {
+        throw new Error('Same-language LRCLIB lyrics should not request translation');
+      },
+      onPhaseChange: (snapshot) => {
+        snapshots.push({
+          phase: snapshot.phase,
+          lineCount: snapshot.lyrics.lines.length,
+        });
+      },
+    });
+
+    expect(snapshots).toEqual([{ phase: 'loading-lyrics', lineCount: 0 }]);
+    expect(result).toEqual({
+      phase: 'ready',
+      lyrics: {
+        status: 'monolingual',
+        source: 'lrclib',
+        sourceLanguage: 'ja-JP',
+        lines: [
+          { timeMs: 0, original: '最初' },
+          { timeMs: 1_000, original: '二番目' },
+        ],
+      },
+    });
+  });
+
   test('stops LRCLIB requests at unavailable without falling back to the old empty-state flow', async () => {
     const snapshots: Array<{ phase: string; lineCount: number }> = [];
 

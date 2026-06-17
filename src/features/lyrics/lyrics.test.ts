@@ -190,4 +190,18 @@ describe('getLineTranslationForLanguage', () => {
       ),
     ).toBeUndefined();
   });
+
+  test('hides translations that match the original lyric text', () => {
+    expect(
+      getLineTranslationForLanguage(
+        {
+          timeMs: 1_000,
+          original: '蜻蜓落在露水旁乘凉',
+          translated: '蜻蜓落在露水旁乘凉',
+          translatedLanguage: 'zh-CN',
+        },
+        'zh-CN',
+      ),
+    ).toBeUndefined();
+  });
 });

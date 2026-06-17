@@ -1,6 +1,7 @@
 import { createTrackCacheKey, normalizeTrackIdentity } from '../spotify/track';
 import { createSpotifyLyricsCacheKey } from './cache-key';
 import { LyricsCache, type CacheEntrySnapshot } from './cache';
+import { isSameSupportedLanguage } from '../../shared/supported-languages';
 import type { TranslateLyricsMessage } from './messages';
 import type { LyricsResult, TrackIdentity } from '../../shared/types';
 
@@ -113,8 +114,11 @@ export function createLyricsCacheController(
 
     const nextRequest = loadLyrics()
       .then(async (lyrics) => {
-        cache.set(cacheKey, lyrics, nowMs(), getResultTtlMs(lyrics, targetLanguage));
-        await persistCacheToStorage();
+        if (shouldCacheLyricsResult(lyrics)) {
+          cache.set(cacheKey, lyrics, nowMs(), getResultTtlMs(lyrics, targetLanguage));
+          await persistCacheToStorage();
+        }
+
         return lyrics;
       })
       .finally(() => {
@@ -136,12 +140,16 @@ export function createLyricsCacheController(
     if (
       lyrics.status === 'monolingual' &&
       targetLanguage &&
-      lyrics.sourceLanguage !== targetLanguage
+      !isSameSupportedLanguage(lyrics.sourceLanguage, targetLanguage)
     ) {
       return options.degradedTtlMs;
     }
 
     return options.hitTtlMs;
+  }
+
+  function shouldCacheLyricsResult(lyrics: LyricsResult): boolean {
+    return lyrics.translationSkippedReason !== 'same-text';
   }
 
   function getUnavailableTtlMs(lyrics: LyricsResult): number {

@@ -101,6 +101,22 @@ export function findSupportedLanguage(language: string | undefined): SupportedLa
   return supportedLanguages.find(
     (supportedLanguage) =>
       supportedLanguage.value === language ||
+      supportedLanguage.googleCode === language ||
+      supportedLanguage.microsoftCode === language ||
       supportedLanguage.aliases?.includes(language),
   );
+}
+
+export function isSameSupportedLanguage(
+  left: string | undefined,
+  right: string | undefined,
+): boolean {
+  if (!left || !right) {
+    return false;
+  }
+
+  const leftLanguage = findSupportedLanguage(left);
+  const rightLanguage = findSupportedLanguage(right);
+
+  return Boolean(leftLanguage && rightLanguage && leftLanguage.value === rightLanguage.value);
 }

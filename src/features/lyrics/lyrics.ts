@@ -1,4 +1,5 @@
 import type { LyricLine, LyricsResult } from '../../shared/types';
+import { isSameLyricText } from '../../shared/lyric-text';
 
 export interface LrclibLyricsResponse {
   id: number;
@@ -67,6 +68,10 @@ export function getLineTranslationForLanguage(
   targetLanguage: string,
 ): string | undefined {
   if (!line.translated) {
+    return undefined;
+  }
+
+  if (isSameLyricText(line.original, line.translated)) {
     return undefined;
   }
 

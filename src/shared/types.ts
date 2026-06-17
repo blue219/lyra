@@ -25,6 +25,7 @@ export interface LyricsResult {
   status: 'bilingual' | 'monolingual' | 'unavailable';
   lines: LyricLine[];
   sourceLanguage?: string;
+  translationSkippedReason?: 'same-language' | 'same-text';
   source?: 'spotify' | 'lrclib';
   unavailableReason?: LyricsUnavailableReason;
 }
