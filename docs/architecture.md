@@ -70,9 +70,9 @@ Lyra uses `chrome.storage.local` through `getExtensionApi()`.
 | Key | Owner | Contents |
 | --- | --- | --- |
 | `overlaySettings` | Content overlay | User settings for `targetLanguage` and `fontSize`. |
-| `lyricsCache` | Background service worker | Cached lyrics results and expiry metadata. |
+| `lyricsCache` | Background service worker | Cached lyrics results and expiry metadata. LRCLIB fallback keeps original lyrics separately from translated results, and Spotify translation entries use short hashed lyric-text keys. |
 
-The lyrics cache keeps up to 200 entries. Bilingual and normal monolingual results are cached for 30 minutes, unavailable results for 5 minutes, and translation-degraded results for 2 minutes.
+The lyrics cache keeps up to 200 entries. Bilingual and normal monolingual results are cached for 30 minutes, confirmed unavailable results for 5 minutes, transient unavailable results for 1 minute, and translation-degraded results for 2 minutes.
 
 ## External services
 

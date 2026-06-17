@@ -115,4 +115,6 @@ When LRCLIB fallback is unavailable, Lyra keeps the overlay readable and shows t
 
 Implementation file: `src/features/lyrics/lrclib.ts`.
 
-The content overlay requests LRCLIB fallback through the background service worker with `lyra:fetchLyrics`. The background cache controller stores LRCLIB results in `chrome.storage.local` under `lyricsCache`, using the normalized track identity and target language as part of the cache key.
+The content overlay requests LRCLIB fallback through the background service worker with `lyra:fetchLyrics`. The background cache controller stores LRCLIB results in `chrome.storage.local` under `lyricsCache`. Original LRCLIB lyrics are cached by normalized track identity, while translated fallback results are cached by normalized track identity and target language.
+
+Confirmed unavailable LRCLIB results, such as no synced match or instrumental tracks, use the normal miss TTL. Transient LRCLIB failures, such as network errors, rate limits, provider errors, or invalid responses, use a shorter TTL so Lyra retries soon instead of hiding temporary recovery behind a long negative cache entry.

@@ -28,6 +28,7 @@ describe('requestLyrics', () => {
       }),
     ).resolves.toEqual({
       status: 'unavailable',
+      unavailableReason: 'extension-context-invalidated',
       lines: [],
     });
   });

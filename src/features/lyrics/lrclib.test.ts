@@ -123,7 +123,7 @@ describe('fetchLyricsFromLrclib', () => {
   });
 
   test('returns unavailable when no synced lyrics are found', async () => {
-    vi.spyOn(globalThis, 'fetch').mockResolvedValue(createJsonResponse([]));
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async () => createJsonResponse([]));
 
     const result = await fetchLyricsFromLrclib({
       title: 'Missing',
@@ -132,6 +132,7 @@ describe('fetchLyricsFromLrclib', () => {
 
     expect(result).toEqual({
       status: 'unavailable',
+      unavailableReason: 'not-found',
       lines: [],
     });
   });
@@ -238,18 +239,19 @@ describe('fetchLyricsFromLrclib', () => {
 
     expect(result).toEqual({
       status: 'unavailable',
+      unavailableReason: 'provider-error',
       lines: [],
     });
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
-  test('returns unavailable after track-only transient failures exhaust retries', async () => {
+  test('returns rate-limited after track-only 429 failures exhaust retries', async () => {
     const fetchMock = vi
       .spyOn(globalThis, 'fetch')
       .mockResolvedValueOnce(createJsonResponse([]))
-      .mockResolvedValueOnce(new Response('', { status: 503 }))
-      .mockResolvedValueOnce(new Response('', { status: 503 }))
-      .mockResolvedValueOnce(new Response('', { status: 503 }));
+      .mockResolvedValueOnce(new Response('', { status: 429 }))
+      .mockResolvedValueOnce(new Response('', { status: 429 }))
+      .mockResolvedValueOnce(new Response('', { status: 429 }));
 
     const result = await fetchLyricsFromLrclib({
       title: 'Missing',
@@ -258,6 +260,28 @@ describe('fetchLyricsFromLrclib', () => {
 
     expect(result).toEqual({
       status: 'unavailable',
+      unavailableReason: 'rate-limited',
+      lines: [],
+    });
+    expect(fetchMock).toHaveBeenCalledTimes(4);
+  });
+
+  test('returns network-error after track-only network failures exhaust retries', async () => {
+    const fetchMock = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(createJsonResponse([]))
+      .mockRejectedValueOnce(new TypeError('network down'))
+      .mockRejectedValueOnce(new TypeError('network down'))
+      .mockRejectedValueOnce(new TypeError('network down'));
+
+    const result = await fetchLyricsFromLrclib({
+      title: 'Missing',
+      artists: ['Nobody'],
+    });
+
+    expect(result).toEqual({
+      status: 'unavailable',
+      unavailableReason: 'network-error',
       lines: [],
     });
     expect(fetchMock).toHaveBeenCalledTimes(4);

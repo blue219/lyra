@@ -123,6 +123,24 @@ describe('toLyricsResult', () => {
 
     expect(toLyricsResult(payload)).toEqual({
       status: 'unavailable',
+      unavailableReason: 'not-found',
+      lines: [],
+    });
+  });
+
+  test('marks instrumental LRCLIB tracks as instrumental unavailable results', () => {
+    const payload: LrclibLyricsResponse = {
+      id: 123,
+      trackName: 'Instrumental',
+      artistName: 'Singer',
+      duration: 180,
+      instrumental: true,
+      syncedLyrics: '[00:01.00] ♪',
+    };
+
+    expect(toLyricsResult(payload)).toEqual({
+      status: 'unavailable',
+      unavailableReason: 'instrumental',
       lines: [],
     });
   });

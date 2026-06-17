@@ -12,11 +12,21 @@ export interface LyricLine {
   translatedLanguage?: string;
 }
 
+export type LyricsUnavailableReason =
+  | 'not-found'
+  | 'instrumental'
+  | 'provider-error'
+  | 'rate-limited'
+  | 'network-error'
+  | 'invalid-response'
+  | 'extension-context-invalidated';
+
 export interface LyricsResult {
   status: 'bilingual' | 'monolingual' | 'unavailable';
   lines: LyricLine[];
   sourceLanguage?: string;
   source?: 'spotify' | 'lrclib';
+  unavailableReason?: LyricsUnavailableReason;
 }
 
 export interface OverlaySettings {

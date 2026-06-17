@@ -12,9 +12,18 @@ export interface LrclibLyricsResponse {
 }
 
 export function toLyricsResult(payload: LrclibLyricsResponse): LyricsResult {
-  if (payload.instrumental || !payload.syncedLyrics?.trim()) {
+  if (payload.instrumental) {
     return {
       status: 'unavailable',
+      unavailableReason: 'instrumental',
+      lines: [],
+    };
+  }
+
+  if (!payload.syncedLyrics?.trim()) {
+    return {
+      status: 'unavailable',
+      unavailableReason: 'not-found',
       lines: [],
     };
   }
@@ -24,6 +33,7 @@ export function toLyricsResult(payload: LrclibLyricsResponse): LyricsResult {
   if (lines.length === 0) {
     return {
       status: 'unavailable',
+      unavailableReason: 'not-found',
       lines: [],
     };
   }

@@ -23,6 +23,7 @@ export interface TranslateLyricsMessage {
 
 const unavailableLyricsResult: LyricsResult = {
   status: 'unavailable',
+  unavailableReason: 'extension-context-invalidated',
   lines: [],
 };
 

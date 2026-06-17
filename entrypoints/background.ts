@@ -13,12 +13,14 @@ const MAX_CACHE_ENTRIES = 200;
 const HIT_TTL_MS = 1000 * 60 * 30;
 const MISS_TTL_MS = 1000 * 60 * 5;
 const DEGRADED_TTL_MS = 1000 * 60 * 2;
+const TRANSIENT_MISS_TTL_MS = 1000 * 60;
 
 const lyricsCacheController = createLyricsCacheController({
   storageKey: CACHE_STORAGE_KEY,
   hitTtlMs: HIT_TTL_MS,
   missTtlMs: MISS_TTL_MS,
   degradedTtlMs: DEGRADED_TTL_MS,
+  transientMissTtlMs: TRANSIENT_MISS_TTL_MS,
   maxEntries: MAX_CACHE_ENTRIES,
   getStorage: () => getExtensionApi()?.storage?.local,
   fetchLyrics: fetchLyricsFromLrclib,

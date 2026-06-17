@@ -93,9 +93,9 @@ LRCLIB lookup uses LRCLIB search with track and artist first, then track-only se
 
 Lyra caches lyrics in the background service worker and persists valid entries to `chrome.storage.local` under `lyricsCache`. Cache hydration is awaited before the first lyrics request checks the cache, so service worker restarts can reuse stored entries before refetching.
 
-The cache keeps up to 200 recently used entries with LRU eviction. Successful bilingual results and normal monolingual results are cached for 30 minutes. Unavailable results are cached for 5 minutes. Monolingual results produced while a target language is selected, but without a matching source language, are treated as translation degradation and cached for 2 minutes so Lyra retries translation soon after temporary service failures.
+The cache keeps up to 200 recently used entries with LRU eviction. Successful bilingual results and normal monolingual results are cached for 30 minutes. Confirmed unavailable results, such as not-found or instrumental LRCLIB results, are cached for 5 minutes. Transient unavailable results from network, rate-limit, provider, or invalid-response failures are cached for 1 minute. Monolingual results produced while a target language is selected, but without a matching source language, are treated as translation degradation and cached for 2 minutes so Lyra retries translation soon after temporary service failures.
 
-Concurrent requests for the same cache key share one in-flight lyrics request. Spotify-sourced translation cache keys include the source, target language, and original lyric text. LRCLIB fallback cache keys include the normalized track identity and target language.
+Concurrent requests for the same cache key share one in-flight lyrics request. Spotify-sourced translation cache keys include the source, target language, line count, and a short hash of the original lyric text, so raw lyrics are not duplicated in the cache key. LRCLIB fallback cache keys keep original lyrics under the normalized track identity and translated results under the normalized track identity plus target language, so switching languages can reuse the same LRCLIB original lyrics.
 
 ## Source language detection
 

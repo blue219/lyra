@@ -1,39 +1,51 @@
 import { toLyricsResult, type LrclibLyricsResponse } from './lyrics';
 import { normalizeTrackIdentity } from '../spotify/track';
-import type { LyricsResult, TrackIdentity } from '../../shared/types';
+import type { LyricsResult, LyricsUnavailableReason, TrackIdentity } from '../../shared/types';
 import { retryWithBackoff } from '../../shared/retry';
 
 const lrclibApiBaseUrl = 'https://lrclib.net/api';
 const lrclibClientName = 'Lyra 0.1.0';
 
-const unavailableLyricsResult: LyricsResult = {
+const notFoundLyricsResult: LyricsResult = {
   status: 'unavailable',
+  unavailableReason: 'not-found',
   lines: [],
 };
+
+interface LrclibSearchResult {
+  match: LrclibLyricsResponse | null;
+  failureReason?: LyricsUnavailableReason;
+}
+
+type LrclibRequestResult<T> =
+  | { ok: true; value: T }
+  | { ok: false; reason: LyricsUnavailableReason };
 
 export async function fetchLyricsFromLrclib(
   track: TrackIdentity,
 ): Promise<LyricsResult> {
   const normalizedTrack = normalizeTrackIdentity(track);
-  const artistMatch = await fetchSearchLyricsMatch(normalizedTrack, true);
+  const artistSearch = await fetchSearchLyricsMatch(normalizedTrack, true);
 
-  if (artistMatch) {
-    return toLyricsResult(artistMatch);
+  if (artistSearch.match) {
+    return toLyricsResult(artistSearch.match);
   }
 
-  const trackOnlyMatch = await fetchSearchLyricsMatch(normalizedTrack, false);
+  const trackOnlySearch = await fetchSearchLyricsMatch(normalizedTrack, false);
 
-  if (trackOnlyMatch) {
-    return toLyricsResult(trackOnlyMatch);
+  if (trackOnlySearch.match) {
+    return toLyricsResult(trackOnlySearch.match);
   }
 
-  return unavailableLyricsResult;
+  return trackOnlySearch.failureReason
+    ? createUnavailableLyricsResult(trackOnlySearch.failureReason)
+    : notFoundLyricsResult;
 }
 
 async function fetchSearchLyricsMatch(
   track: TrackIdentity,
   includeArtist: boolean,
-): Promise<LrclibLyricsResponse | null> {
+): Promise<LrclibSearchResult> {
   const searchParams = new URLSearchParams({
     track_name: track.title,
   });
@@ -42,18 +54,24 @@ async function fetchSearchLyricsMatch(
     searchParams.set('artist_name', track.artists.join(', '));
   }
 
-  const matches = await requestLrclibJson<LrclibLyricsResponse[]>(
+  const result = await requestLrclibJson<LrclibLyricsResponse[]>(
     `${lrclibApiBaseUrl}/search?${searchParams.toString()}`,
   );
 
-  if (!matches?.length) {
-    return null;
+  if (!result.ok) {
+    return { match: null, failureReason: result.reason };
   }
 
-  return selectBestMatch(matches, track);
+  const matches = result.value;
+
+  if (!matches?.length) {
+    return { match: null };
+  }
+
+  return { match: selectBestMatch(matches, track) };
 }
 
-async function requestLrclibJson<T>(url: string): Promise<T | null> {
+async function requestLrclibJson<T>(url: string): Promise<LrclibRequestResult<T>> {
   try {
     const response = await retryWithBackoff({
       operation: async () => {
@@ -80,11 +98,24 @@ async function requestLrclibJson<T>(url: string): Promise<T | null> {
       },
     });
 
-    return (await response.json()) as T;
+    try {
+      return { ok: true, value: (await response.json()) as T };
+    } catch (error) {
+      console.error(`[Lyra] LRCLIB response could not be parsed for ${url}:`, error);
+      return { ok: false, reason: 'invalid-response' };
+    }
   } catch (error) {
     console.error(`[Lyra] LRCLIB request failed after retry exhaustion or a non-retryable error for ${url}:`, error);
-    return null;
+    return { ok: false, reason: getUnavailableReasonFromError(error) };
   }
+}
+
+function createUnavailableLyricsResult(reason: LyricsUnavailableReason): LyricsResult {
+  return {
+    status: 'unavailable',
+    unavailableReason: reason,
+    lines: [],
+  };
 }
 
 function isTransientRequestError(error: unknown): boolean {
@@ -93,6 +124,22 @@ function isTransientRequestError(error: unknown): boolean {
 
 function isRetryableHttpStatusError(error: unknown): boolean {
   return error instanceof HttpStatusError && (error.status === 429 || error.status >= 500);
+}
+
+function getUnavailableReasonFromError(error: unknown): LyricsUnavailableReason {
+  if (error instanceof TypeError) {
+    return 'network-error';
+  }
+
+  if (error instanceof HttpStatusError) {
+    if (error.status === 429) {
+      return 'rate-limited';
+    }
+
+    return 'provider-error';
+  }
+
+  return 'provider-error';
 }
 
 class HttpStatusError extends Error {
