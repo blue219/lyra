@@ -1,3 +1,4 @@
+import { createToolbarActionGate } from '../src/features/action/action-gate';
 import { createLyricsCacheController } from '../src/features/lyrics/cache-controller';
 import { fetchLyricsFromLrclib } from '../src/features/lyrics/lrclib';
 import {
@@ -29,6 +30,13 @@ const lyricsCacheController = createLyricsCacheController({
 
 export default defineBackground(() => {
   const extensionApi = getExtensionApi();
+
+  if (extensionApi?.action && extensionApi.declarativeContent) {
+    void createToolbarActionGate({
+      action: extensionApi.action,
+      declarativeContent: extensionApi.declarativeContent,
+    }).start();
+  }
 
   extensionApi?.runtime?.onMessage.addListener((message) => {
     if (isFetchOriginalLyricsMessage(message)) {

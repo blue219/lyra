@@ -4,6 +4,8 @@
 
 Lyra injects a content script into `https://open.spotify.com/*`, but it does not inject translated text into Spotify's native lyric rows. On Spotify's lyrics page, Lyra visually disables Spotify's native lyrics UI, keeps the native DOM available only as a data and active-line sync source, and renders its own React replacement lyrics page in the same lyrics area. If Spotify lyrics are unavailable or Spotify marks them as unsynced, Lyra falls back to synced LRCLIB lyrics for the current track.
 
+Lyra's toolbar action is disabled by default and becomes available only on `https://open.spotify.com/*` pages through a declarative content rule. Clicking the enabled toolbar action opens a compact settings popup that uses the same persisted overlay settings as the in-page lyrics UI.
+
 Translation uses Google Translate's web endpoint first, then falls back to Microsoft Translator and Bing Translator web endpoints for failed lyric chunks. If no provider can preserve lyric line boundaries, Spotify's original lyrics remain unchanged.
 
 ## Manual loading
@@ -46,6 +48,7 @@ The extension manifest grants `storage`, `https://lrclib.net/*`, `https://transl
 - Lyra replacement lyric lines show a pointer cursor and can be clicked to switch Lyra's active line. LRCLIB fallback lines also seek playback by their synced timestamp.
 - After lyric-line clicks, Lyra returns highlight control to synced playback and keeps the replacement lyrics view in front of the native Spotify page.
 - The Lyra settings icon appears in the top-right corner when Spotify lyrics are visible.
+- Clicking the enabled Lyra toolbar action opens a popup with target language, font size, and dynamic background controls.
 - When Spotify lyrics are not available but the current track is readable, Lyra requests synced LRCLIB fallback lyrics.
 - Lyra waits for persisted settings before the first lyrics request so LRCLIB fallback uses the saved target language immediately.
 - Monolingual, translated, and unavailable lyric states remain readable.

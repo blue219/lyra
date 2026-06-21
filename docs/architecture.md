@@ -7,6 +7,7 @@ This document describes the current extension structure and runtime data flow.
 Lyra is a WXT Manifest V3 browser extension for Spotify Web Player.
 
 - The content script runs on `https://open.spotify.com/*`.
+- The toolbar action is disabled by default and enabled only on `https://open.spotify.com/*` pages through a declarative content rule.
 - The content script mounts Lyra's React replacement lyrics page only when the user is on Spotify's lyrics page or when visible Spotify lyric rows are present.
 - Lyra visually disables Spotify's native lyrics UI and keeps the native DOM available only as the source for lyric text and active-line synchronization.
 - If Spotify lyrics are missing or Spotify marks them as unsynced, the overlay requests synced fallback lyrics from LRCLIB.
@@ -19,12 +20,14 @@ Lyra is a WXT Manifest V3 browser extension for Spotify Web Player.
 | --- | --- |
 | `entrypoints/content/index.tsx` | Injects the content script, watches Spotify DOM changes, mounts or removes Lyra's replacement UI, and hides native lyric text while Lyra renders its own lyrics page. |
 | `entrypoints/background.ts` | Handles lyrics, original lyrics, and translation runtime messages. It owns the persisted lyrics cache controller. |
+| `entrypoints/popup/index.html` | Hosts the browser action popup that exposes Lyra's persisted display settings. |
 
 ## Feature modules
 
 | Directory | Responsibility |
 | --- | --- |
 | `src/features/overlay` | React replacement lyrics page, settings entry, lyrics request orchestration, active-line selection, scroll behavior, and replacement rendering. |
+| `src/features/popup` | Browser action popup that loads and persists overlay settings through extension storage. |
 | `src/features/spotify` | Spotify DOM readers, lyrics page detection, track identity extraction, active line detection, and playback seeking helpers. |
 | `src/features/lyrics` | LRCLIB lookup, synced lyrics parsing, cache controller, and runtime message contracts. |
 | `src/features/translation` | Translation provider orchestration, language-code mapping, line-boundary validation, and degradation behavior. |
@@ -88,6 +91,8 @@ The current settings surface supports:
 
 - Target language: English, Simplified Chinese, Traditional Chinese, Japanese, Korean, Spanish, French, German, Portuguese, Italian, Russian, or Indonesian.
 - Font size: `sm`, `md`, or `lg`.
+
+These settings are available both from the in-page Spotify lyrics overlay and from the browser action popup.
 
 Unsupported or malformed persisted settings are sanitized back to defaults before use.
 

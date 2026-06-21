@@ -29,6 +29,10 @@ import {
 } from './lyrics-flow';
 import { defaultOverlaySettings, sanitizeOverlaySettings } from '../settings/settings';
 import {
+  loadOverlaySettings,
+  saveOverlaySettings,
+} from '../settings/settings-storage';
+import {
   clickSpotifyLyricLine,
   hasUnsyncedSpotifyLyricsNotice,
   markNativeSpotifyLyricsHidden,
@@ -46,7 +50,6 @@ import type {
   TrackIdentity,
 } from '../../shared/types';
 
-const overlaySettingsStorageKey = 'overlaySettings';
 const replacementHostAttribute = 'data-lyra-replacement-host';
 const replacementLineSelector = '.lyra-replacement-line';
 const replacementAutoScrollPauseMs = 2_500;
@@ -97,26 +100,13 @@ export function ContentApp() {
   useEffect(() => {
     let isCancelled = false;
 
-    if (!extensionApi?.storage?.local) {
-      setSettings(defaultOverlaySettings);
-      setSettingsLoaded(true);
-      return () => {
-        isCancelled = true;
-      };
-    }
-
-    extensionApi.storage.local
-      .get(overlaySettingsStorageKey)
-      .then((storedValue) => {
+    loadOverlaySettings(extensionApi)
+      .then((nextSettings) => {
         if (isCancelled) {
           return;
         }
 
-        setSettings(
-          sanitizeOverlaySettings(
-            storedValue[overlaySettingsStorageKey] as Partial<OverlaySettings> | undefined,
-          ),
-        );
+        setSettings(nextSettings);
         setSettingsLoaded(true);
       })
       .catch(() => {
@@ -393,11 +383,7 @@ export function ContentApp() {
         ...patch,
       });
 
-      if (extensionApi?.storage?.local) {
-        void extensionApi.storage.local.set({
-          [overlaySettingsStorageKey]: nextSettings,
-        });
-      }
+      void saveOverlaySettings(extensionApi, nextSettings);
 
       return nextSettings;
     });

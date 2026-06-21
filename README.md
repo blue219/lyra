@@ -29,6 +29,8 @@ Instead of injecting translated text into Spotify's native lyric rows, Lyra visu
 
 Translation uses Google Translate's web endpoint first, then falls back to Microsoft Translator and Bing Translator web endpoints for failed lyric chunks. When no provider can preserve lyric line boundaries, Lyra keeps showing the original lyrics.
 
+The toolbar action is disabled by default and is shown as available only on Spotify Web Player pages. Clicking the enabled toolbar action opens a compact settings popup for Lyra's target language, font size, and dynamic background preferences.
+
 ## Features
 
 - Detects the currently playing Spotify track.
@@ -101,7 +103,7 @@ Use `.output/chrome-mv3` only after running `npm run build` for a production bun
 
 ## Configuration
 
-Lyra does not require local environment variables for translation. The generated extension manifest grants access to LRCLIB, Google Translate, Microsoft Translator, and Bing Translator through static host permissions.
+Lyra does not require local environment variables for translation. The generated extension manifest grants access to LRCLIB, Google Translate, Microsoft Translator, and Bing Translator through static host permissions, and uses `declarativeContent` to enable the toolbar action only on Spotify Web Player pages.
 
 ## Available Scripts
 

@@ -1,0 +1,25 @@
+@import "tailwindcss";
+
+:root {
+  --lyra-font-ui: SpotifyMixUI, CircularSp-Arab, CircularSp-Hebr, CircularSp-Cyrl,
+    CircularSp-Grek, CircularSp-Deva, "Helvetica Neue", helvetica, arial,
+    "Hiragino Sans", "Hiragino Kaku Gothic ProN", Meiryo, "MS Gothic", sans-serif;
+  --lyra-color-text: #ffffff;
+  --lyra-color-accent: #1ed760;
+  font-family: var(--lyra-font-ui);
+  color: var(--lyra-color-text);
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  width: 274px;
+  min-height: 100%;
+  overflow: hidden;
+  background: transparent;
+}
+
+body {
+  min-width: 274px;
+}
