@@ -3,7 +3,7 @@ import type { CSSProperties } from 'react';
 import type { OverlayPhase } from './lyrics-flow';
 import settingsIconUrl from '../../assets/branding/toolbar/lyra-toolbar-green-transparent.png';
 import { SettingsPanel } from '../settings/settings-panel';
-import type { LyricsResult, OverlaySettings } from '../../shared/types';
+import type { CacheSummary, LyricsResult, OverlaySettings } from '../../shared/types';
 
 export interface SettingsAnchor {
   right: number;
@@ -12,20 +12,28 @@ export interface SettingsAnchor {
 
 interface SettingsEntryProps {
   anchor: SettingsAnchor | null;
+  cacheSummary: CacheSummary;
   isOpen: boolean;
+  isCachePending: boolean;
+  isClearingCache: boolean;
   lyrics: LyricsResult;
   phase: OverlayPhase;
   settings: OverlaySettings;
+  onClearCache: () => void;
   onOpenChange: (isOpen: boolean) => void;
   onSettingsChange: (patch: Partial<OverlaySettings>) => void;
 }
 
 export function SettingsEntry({
   anchor,
+  cacheSummary,
   isOpen,
+  isCachePending,
+  isClearingCache,
   lyrics,
   phase,
   settings,
+  onClearCache,
   onOpenChange,
   onSettingsChange,
 }: SettingsEntryProps) {
@@ -59,8 +67,12 @@ export function SettingsEntry({
             className="absolute -top-[3px] right-[14px] h-4 w-4 rotate-45 border-t border-l border-white/12 bg-[rgba(24,24,24,0.96)]"
           />
           <SettingsPanel
+            cacheSummary={cacheSummary}
             footerText={getPhaseLabel(phase, lyrics)}
+            isCachePending={isCachePending}
+            isClearingCache={isClearingCache}
             settings={settings}
+            onClearCache={onClearCache}
             onSettingsChange={onSettingsChange}
             variant="overlay"
           />

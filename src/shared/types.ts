@@ -35,3 +35,10 @@ export interface OverlaySettings {
   fontSize: 'sm' | 'md' | 'lg';
   dynamicBackground: boolean;
 }
+
+export interface CacheSummary {
+  songCount: number;
+  entryCount: number;
+  maxEntries: number;
+  sizeBytes: number;
+}

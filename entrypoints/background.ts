@@ -2,7 +2,9 @@ import { createToolbarActionGate } from '../src/features/action/action-gate';
 import { createLyricsCacheController } from '../src/features/lyrics/cache-controller';
 import { fetchLyricsFromLrclib } from '../src/features/lyrics/lrclib';
 import {
+  isClearLyricsCacheMessage,
   isFetchLyricsMessage,
+  isGetLyricsCacheSummaryMessage,
   isFetchOriginalLyricsMessage,
   isTranslateLyricsMessage,
 } from '../src/features/lyrics/messages';
@@ -49,6 +51,14 @@ export default defineBackground(() => {
 
     if (isTranslateLyricsMessage(message)) {
       return lyricsCacheController.handleTranslateLyrics(message);
+    }
+
+    if (isGetLyricsCacheSummaryMessage(message)) {
+      return lyricsCacheController.getCacheSummary();
+    }
+
+    if (isClearLyricsCacheMessage(message)) {
+      return lyricsCacheController.clearCache();
     }
 
     return undefined;

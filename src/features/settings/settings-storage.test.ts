@@ -5,6 +5,7 @@ import {
   loadOverlaySettings,
   overlaySettingsStorageKey,
   saveOverlaySettings,
+  subscribeOverlaySettings,
 } from './settings-storage';
 
 describe('loadOverlaySettings', () => {
@@ -63,5 +64,52 @@ describe('saveOverlaySettings', () => {
         dynamicBackground: false,
       },
     });
+  });
+});
+
+describe('subscribeOverlaySettings', () => {
+  test('subscribes to local storage changes and emits sanitized overlay settings', () => {
+    const addListener = vi.fn();
+    const removeListener = vi.fn();
+    const callback = vi.fn();
+
+    const unsubscribe = subscribeOverlaySettings(
+      {
+        storage: {
+          onChanged: {
+            addListener,
+            removeListener,
+          },
+        },
+      } as never,
+      callback,
+    );
+
+    expect(addListener).toHaveBeenCalledTimes(1);
+    const listener = addListener.mock.calls[0]?.[0] as
+      | ((changes: Record<string, { newValue?: unknown }>, areaName: string) => void)
+      | undefined;
+
+    listener?.(
+      {
+        [overlaySettingsStorageKey]: {
+          newValue: {
+            targetLanguage: 'zh-CN',
+            fontSize: 'lg',
+            dynamicBackground: false,
+          },
+        },
+      },
+      'local',
+    );
+
+    expect(callback).toHaveBeenCalledWith({
+      targetLanguage: 'zh-CN',
+      fontSize: 'lg',
+      dynamicBackground: false,
+    });
+
+    unsubscribe();
+    expect(removeListener).toHaveBeenCalledWith(listener);
   });
 });

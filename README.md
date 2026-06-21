@@ -29,7 +29,7 @@ Instead of injecting translated text into Spotify's native lyric rows, Lyra visu
 
 Translation uses Google Translate's web endpoint first, then falls back to Microsoft Translator and Bing Translator web endpoints for failed lyric chunks. When no provider can preserve lyric line boundaries, Lyra keeps showing the original lyrics.
 
-The toolbar action is disabled by default and is shown as available only on Spotify Web Player pages. Clicking the enabled toolbar action opens a compact settings popup for Lyra's target language, font size, and dynamic background preferences.
+The toolbar action is disabled by default and is shown as available only on Spotify Web Player pages. Clicking the enabled toolbar action opens a compact settings popup for Lyra's target language, font size, dynamic background preferences, and lyrics cache management.
 
 ## Features
 
@@ -40,6 +40,7 @@ The toolbar action is disabled by default and is shown as available only on Spot
 - Highlights the active lyric line during playback.
 - Supports line clicks for active-line selection and LRCLIB timestamp seeking.
 - Persists basic overlay settings such as target language, font size, and dynamic background preference.
+- Shows cached song count and estimated cache size, and lets users clear stored lyrics cache from either settings surface.
 - Renders a low-power aurora background that can fall back to a static gradient.
 - Keeps translation failure graceful by showing original lyrics when translation is unavailable.
 

@@ -31,7 +31,12 @@ import { defaultOverlaySettings, sanitizeOverlaySettings } from '../settings/set
 import {
   loadOverlaySettings,
   saveOverlaySettings,
+  subscribeOverlaySettings,
 } from '../settings/settings-storage';
+import {
+  clearLyricsCache,
+  getLyricsCacheSummary,
+} from '../lyrics/messages';
 import {
   clickSpotifyLyricLine,
   hasUnsyncedSpotifyLyricsNotice,
@@ -44,6 +49,7 @@ import {
 } from '../spotify/spotify-dom';
 import { getExtensionApi } from '../../shared/extension-api';
 import type {
+  CacheSummary,
   LyricLine,
   LyricsResult,
   OverlaySettings,
@@ -67,6 +73,14 @@ export function ContentApp() {
   const [settingsLoaded, setSettingsLoaded] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settingsAnchor, setSettingsAnchor] = useState<SettingsAnchor | null>(null);
+  const [cacheSummary, setCacheSummary] = useState<CacheSummary>({
+    songCount: 0,
+    entryCount: 0,
+    maxEntries: 0,
+    sizeBytes: 0,
+  });
+  const [isCachePending, setIsCachePending] = useState(true);
+  const [isClearingCache, setIsClearingCache] = useState(false);
   const [replacementHost, setReplacementHost] = useState<HTMLElement | null>(null);
   const [lyricsDomVersion, setLyricsDomVersion] = useState(0);
   const [selectedLineState, setSelectedLineState] = useState<SelectedLineState | null>(
@@ -75,6 +89,7 @@ export function ContentApp() {
   const previousPlaybackPositionMsRef = useRef<number | null>(null);
   const replacementAutoScrollPauseUntilMsRef = useRef(0);
   const isProgrammaticReplacementScrollRef = useRef(false);
+  const previousSettingsOpenRef = useRef(false);
 
   const lyricsSelection = selectLyricsRequest(
     spotifyLyricsLines,
@@ -119,7 +134,39 @@ export function ContentApp() {
     return () => {
       isCancelled = true;
     };
-  }, []);
+  }, [extensionApi]);
+
+  useEffect(() => {
+    return subscribeOverlaySettings(extensionApi, (nextSettings) => {
+      setSettings(nextSettings);
+      setSettingsLoaded(true);
+    });
+  }, [extensionApi]);
+
+  async function refreshCacheSummary(): Promise<void> {
+    setIsCachePending(true);
+
+    try {
+      setCacheSummary(await getLyricsCacheSummary(extensionApi));
+    } finally {
+      setIsCachePending(false);
+    }
+  }
+
+  useEffect(() => {
+    const shouldRefresh = shouldRefreshCacheSummaryOnOpen({
+      isOpen: settingsOpen,
+      wasOpen: previousSettingsOpenRef.current,
+    });
+
+    previousSettingsOpenRef.current = settingsOpen;
+
+    if (!shouldRefresh) {
+      return;
+    }
+
+    void refreshCacheSummary();
+  }, [settingsOpen]);
 
   useEffect(() => {
     const syncPlaybackState = () => {
@@ -389,6 +436,17 @@ export function ContentApp() {
     });
   }
 
+  async function handleClearCache() {
+    setIsClearingCache(true);
+
+    try {
+      await clearLyricsCache(extensionApi);
+      await refreshCacheSummary();
+    } finally {
+      setIsClearingCache(false);
+    }
+  }
+
   function selectReplacementLine(index: number) {
     if (!lyrics.lines[index]) {
       return;
@@ -448,10 +506,14 @@ export function ContentApp() {
 
       <SettingsEntry
         anchor={settingsAnchor}
+        cacheSummary={cacheSummary}
         isOpen={settingsOpen}
+        isCachePending={isCachePending}
+        isClearingCache={isClearingCache}
         lyrics={lyrics}
         phase={phase}
         settings={settings}
+        onClearCache={handleClearCache}
         onOpenChange={setSettingsOpen}
         onSettingsChange={updateSettings}
       />
@@ -480,6 +542,16 @@ export function shouldPauseReplacementAutoScroll({
   nowMs: number;
 }): boolean {
   return pauseUntilMs > nowMs;
+}
+
+export function shouldRefreshCacheSummaryOnOpen({
+  isOpen,
+  wasOpen,
+}: {
+  isOpen: boolean;
+  wasOpen: boolean;
+}): boolean {
+  return isOpen && !wasOpen;
 }
 
 export function shouldTrackManualReplacementScroll(

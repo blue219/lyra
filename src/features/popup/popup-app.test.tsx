@@ -19,8 +19,8 @@ describe('PopupApp', () => {
     expect(html).toContain('rounded-none');
     expect(html).toContain('border-none');
     expect(html).toContain('shadow-none');
-    expect(html).not.toContain('p-3');
     expect(html).not.toContain('circle_at_top_left');
+    expect(html).toContain('w-[274px]');
   });
 
   test('loads persisted settings into the popup controls', async () => {
@@ -57,6 +57,9 @@ describe('PopupApp', () => {
     ).toBe('zh-CN');
     expect(container.innerHTML).toContain('aria-checked="false"');
     expect(container.innerHTML).toContain('LG');
+    expect(container.innerHTML).not.toContain(
+      'Falls back to static when motion should be reduced.',
+    );
 
     await act(async () => {
       root.unmount();
@@ -106,6 +109,79 @@ describe('PopupApp', () => {
         dynamicBackground: false,
       },
     });
+
+    await act(async () => {
+      root.unmount();
+    });
+  });
+
+  test('shows cache summary and clears cache from the popup settings', async () => {
+    const sendMessage = vi
+      .fn()
+      .mockResolvedValueOnce({
+        songCount: 12,
+        entryCount: 14,
+        maxEntries: 200,
+        sizeBytes: 3_584,
+      })
+      .mockResolvedValueOnce(undefined)
+      .mockResolvedValueOnce({
+        songCount: 0,
+        entryCount: 0,
+        maxEntries: 200,
+        sizeBytes: 2,
+      });
+    const container = document.createElement('div');
+    const root = createRoot(container);
+
+    await act(async () => {
+      root.render(
+        <PopupApp
+          extensionApi={
+            {
+              runtime: {
+                sendMessage,
+              },
+              storage: {
+                local: {
+                  get: vi.fn().mockResolvedValue({
+                    overlaySettings: {
+                      targetLanguage: 'en-US',
+                      fontSize: 'md',
+                      dynamicBackground: true,
+                    },
+                  }),
+                  set: vi.fn(),
+                },
+              },
+            } as never
+          }
+        />,
+      );
+      await flushEffects();
+    });
+
+    expect(container.textContent).toContain('Cached songs');
+    expect(container.textContent).toContain('12/200');
+    expect(container.textContent).toContain('Cache size');
+    expect(container.textContent).toContain('3.5 KB');
+    expect(container.innerHTML).toContain('bg-[#ff1010]');
+    expect(container.innerHTML).toContain('rounded-[999px] bg-[#ff1010]');
+    expect(container.innerHTML).not.toContain('border-t border-white/10');
+
+    const clearButton = Array.from(container.querySelectorAll('button')).find((button) =>
+      button.textContent?.toUpperCase().includes('CLEAR'),
+    );
+
+    await act(async () => {
+      clearButton?.click();
+      await flushEffects();
+    });
+
+    expect(sendMessage).toHaveBeenNthCalledWith(1, { type: 'lyra:getLyricsCacheSummary' });
+    expect(sendMessage).toHaveBeenNthCalledWith(2, { type: 'lyra:clearLyricsCache' });
+    expect(sendMessage).toHaveBeenNthCalledWith(3, { type: 'lyra:getLyricsCacheSummary' });
+    expect(container.textContent).toContain('0/200');
 
     await act(async () => {
       root.unmount();

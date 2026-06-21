@@ -4,7 +4,7 @@
 
 Lyra injects a content script into `https://open.spotify.com/*`, but it does not inject translated text into Spotify's native lyric rows. On Spotify's lyrics page, Lyra visually disables Spotify's native lyrics UI, keeps the native DOM available only as a data and active-line sync source, and renders its own React replacement lyrics page in the same lyrics area. If Spotify lyrics are unavailable or Spotify marks them as unsynced, Lyra falls back to synced LRCLIB lyrics for the current track.
 
-Lyra's toolbar action is disabled by default and becomes available only on `https://open.spotify.com/*` pages through a declarative content rule. Clicking the enabled toolbar action opens a compact settings popup that uses the same persisted overlay settings as the in-page lyrics UI.
+Lyra's toolbar action is disabled by default and becomes available only on `https://open.spotify.com/*` pages through a declarative content rule. Clicking the enabled toolbar action opens a compact settings popup that uses the same persisted overlay settings as the in-page lyrics UI and exposes lyrics cache status and clearing controls.
 
 Translation uses Google Translate's web endpoint first, then falls back to Microsoft Translator and Bing Translator web endpoints for failed lyric chunks. If no provider can preserve lyric line boundaries, Spotify's original lyrics remain unchanged.
 
@@ -48,13 +48,15 @@ The extension manifest grants `storage`, `https://lrclib.net/*`, `https://transl
 - Lyra replacement lyric lines show a pointer cursor and can be clicked to switch Lyra's active line. LRCLIB fallback lines also seek playback by their synced timestamp.
 - After lyric-line clicks, Lyra returns highlight control to synced playback and keeps the replacement lyrics view in front of the native Spotify page.
 - The Lyra settings icon appears in the top-right corner when Spotify lyrics are visible.
-- Clicking the enabled Lyra toolbar action opens a popup with target language, font size, and dynamic background controls.
+- Clicking the enabled Lyra toolbar action opens a popup with target language, font size, dynamic background, and cache management controls.
+- Both the in-page settings panel and the toolbar popup show cached song count, estimated cache size, and a working clear-cache button.
 - When Spotify lyrics are not available but the current track is readable, Lyra requests synced LRCLIB fallback lyrics.
 - Lyra waits for persisted settings before the first lyrics request so LRCLIB fallback uses the saved target language immediately.
 - Monolingual, translated, and unavailable lyric states remain readable.
 - Supported target language settings persist across refresh.
 - Font size settings persist across refresh.
 - Dynamic background preference persists across refresh.
+- Clearing lyrics cache updates the visible cache summary and removes persisted `lyricsCache` entries.
 
 ## Code organization
 
@@ -93,6 +95,8 @@ Lyra caches lyrics in the background service worker and persists valid entries t
 The cache keeps up to 200 recently used entries with LRU eviction. Successful bilingual results and normal monolingual results are cached for 30 minutes. Confirmed unavailable results, such as not-found or instrumental LRCLIB results, are cached for 5 minutes. Transient unavailable results from network, rate-limit, provider, or invalid-response failures are cached for 1 minute. Monolingual results produced while a target language is selected, but without a matching source language, are treated as translation degradation and cached for 2 minutes so Lyra retries translation soon after temporary service failures.
 
 Concurrent requests for the same cache key share one in-flight lyrics request. Spotify-sourced translation cache keys include the source, target language, line count, and a short hash of the original lyric text, so raw lyrics are not duplicated in the cache key. LRCLIB fallback cache keys keep original lyrics under the normalized track identity and translated results under the normalized track identity plus target language, so switching languages can reuse the same LRCLIB original lyrics.
+
+The settings UI reads cache summary data from the background controller. Lyra groups cache entries by song-shaped cache keys so the settings views can show an approximate cached song count and estimated serialized storage size before users clear the cache.
 
 ## Source language detection
 

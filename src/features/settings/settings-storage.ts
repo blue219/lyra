@@ -33,3 +33,39 @@ export async function saveOverlaySettings(
     [overlaySettingsStorageKey]: sanitizeOverlaySettings(settings),
   });
 }
+
+export function subscribeOverlaySettings(
+  extensionApi: ExtensionApi,
+  onSettingsChange: (settings: OverlaySettings) => void,
+): () => void {
+  const storageChanged = extensionApi?.storage?.onChanged;
+
+  if (!storageChanged?.addListener || !storageChanged?.removeListener) {
+    return () => undefined;
+  }
+
+  const listener = (
+    changes: Record<string, { newValue?: unknown }>,
+    areaName: string,
+  ): void => {
+    if (areaName !== 'local') {
+      return;
+    }
+
+    const settingsChange = changes[overlaySettingsStorageKey];
+
+    if (!settingsChange) {
+      return;
+    }
+
+    onSettingsChange(
+      sanitizeOverlaySettings(settingsChange.newValue as Partial<OverlaySettings> | undefined),
+    );
+  };
+
+  storageChanged.addListener(listener);
+
+  return () => {
+    storageChanged.removeListener(listener);
+  };
+}

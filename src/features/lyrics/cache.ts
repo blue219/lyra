@@ -70,6 +70,10 @@ export class LyricsCache {
     }));
   }
 
+  clear(): void {
+    this.entries.clear();
+  }
+
   /** Hydrate an entry with a pre-computed expiresAt (for persistence restore). */
   restore(
     key: string,

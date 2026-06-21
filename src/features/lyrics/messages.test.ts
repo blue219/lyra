@@ -1,6 +1,8 @@
 import { afterEach, describe, expect, test, vi } from 'vitest';
 
 import {
+  clearLyricsCache,
+  getLyricsCacheSummary,
   requestLyrics,
   requestOriginalLyrics,
   requestTranslatedLyrics,
@@ -127,6 +129,49 @@ describe('requestLyrics', () => {
       lines: [{ timeMs: 0, original: 'Hello' }],
       targetLanguage: 'zh-CN',
       source: 'spotify',
+    });
+  });
+
+  test('can request the current lyrics cache summary', async () => {
+    const sendMessage = vi.fn(() =>
+      Promise.resolve({
+        songCount: 12,
+        entryCount: 14,
+        maxEntries: 200,
+        sizeBytes: 3_584,
+      }),
+    );
+
+    (globalThis as Record<string, unknown>).browser = {
+      runtime: {
+        sendMessage,
+      },
+    } as unknown as typeof browser;
+
+    await expect(getLyricsCacheSummary()).resolves.toEqual({
+      songCount: 12,
+      entryCount: 14,
+      maxEntries: 200,
+      sizeBytes: 3_584,
+    });
+    expect(sendMessage).toHaveBeenCalledWith({
+      type: 'lyra:getLyricsCacheSummary',
+    });
+  });
+
+  test('can clear the persisted lyrics cache', async () => {
+    const sendMessage = vi.fn(() => Promise.resolve(undefined));
+
+    (globalThis as Record<string, unknown>).browser = {
+      runtime: {
+        sendMessage,
+      },
+    } as unknown as typeof browser;
+
+    await clearLyricsCache();
+
+    expect(sendMessage).toHaveBeenCalledWith({
+      type: 'lyra:clearLyricsCache',
     });
   });
 });

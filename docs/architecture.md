@@ -63,6 +63,8 @@ Lyra's current UI model is a replacement page, not inline modification of Spotif
 | `lyra:fetchLyrics` | Content to background | Fetch LRCLIB lyrics for a track and translate them for the selected target language. |
 | `lyra:fetchOriginalLyrics` | Content to background | Fetch LRCLIB original synced lyrics for a track without translation. |
 | `lyra:translateLyrics` | Content to background | Translate visible Spotify lyric lines for the selected target language. |
+| `lyra:getLyricsCacheSummary` | Content or popup to background | Read cached song count, cache entry count, and estimated storage usage for the lyrics cache. |
+| `lyra:clearLyricsCache` | Content or popup to background | Clear in-memory and persisted lyrics cache entries. |
 
 Message schemas live in `src/features/lyrics/messages.ts`.
 
@@ -76,6 +78,8 @@ Lyra uses `chrome.storage.local` through `getExtensionApi()`.
 | `lyricsCache` | Background service worker | Cached lyrics results and expiry metadata. LRCLIB fallback keeps original lyrics separately from translated results, and Spotify translation entries use short hashed lyric-text keys. |
 
 The lyrics cache keeps up to 200 entries. Bilingual and normal monolingual results are cached for 30 minutes, confirmed unavailable results for 5 minutes, transient unavailable results for 1 minute, and translation-degraded results for 2 minutes.
+
+The background cache controller also exposes cache summary and clear operations for the two settings surfaces. Summary values are derived from current cache entries and grouped by song-shaped cache keys so the UI can show an approximate cached song count and serialized storage size.
 
 ## External services
 
@@ -91,6 +95,8 @@ The current settings surface supports:
 
 - Target language: English, Simplified Chinese, Traditional Chinese, Japanese, Korean, Spanish, French, German, Portuguese, Italian, Russian, or Indonesian.
 - Font size: `sm`, `md`, or `lg`.
+- Lyrics cache summary: cached song count and estimated storage usage.
+- Lyrics cache clearing: removes persisted and in-memory lyrics cache entries.
 
 These settings are available both from the in-page Spotify lyrics overlay and from the browser action popup.
 

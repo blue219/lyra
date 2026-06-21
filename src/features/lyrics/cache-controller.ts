@@ -3,7 +3,7 @@ import { createSpotifyLyricsCacheKey } from './cache-key';
 import { LyricsCache, type CacheEntrySnapshot } from './cache';
 import { isSameSupportedLanguage } from '../../shared/supported-languages';
 import type { TranslateLyricsMessage } from './messages';
-import type { LyricsResult, TrackIdentity } from '../../shared/types';
+import type { CacheSummary, LyricsResult, TrackIdentity } from '../../shared/types';
 
 interface LyricsCacheStorage {
   get(key: string): Promise<Record<string, unknown>>;
@@ -37,6 +37,8 @@ export interface LyricsCacheController {
     targetLanguage?: string,
   ): Promise<LyricsResult>;
   handleTranslateLyrics(message: TranslateLyricsMessage): Promise<LyricsResult>;
+  getCacheSummary(): Promise<CacheSummary>;
+  clearCache(): Promise<void>;
 }
 
 export function createLyricsCacheController(
@@ -91,6 +93,17 @@ export function createLyricsCacheController(
     } catch (error) {
       logger.warn('[Lyra] Failed to persist lyrics cache:', error);
     }
+  }
+
+  function getCacheSummaryFromEntries(entries: CacheEntrySnapshot[]): CacheSummary {
+    const groupedSongs = new Set(entries.map((entry) => createCacheSongGroupKey(entry.key)));
+
+    return {
+      songCount: groupedSongs.size,
+      entryCount: entries.length,
+      maxEntries: options.maxEntries,
+      sizeBytes: new TextEncoder().encode(JSON.stringify(entries)).length,
+    };
   }
 
   async function getCachedOrLoad(
@@ -242,7 +255,33 @@ export function createLyricsCacheController(
         return lyrics;
       });
     },
+
+    async getCacheSummary(): Promise<CacheSummary> {
+      await hydrationPromise;
+      return getCacheSummaryFromEntries(cache.getEntries(nowMs()));
+    },
+
+    async clearCache(): Promise<void> {
+      await hydrationPromise;
+      cache.clear();
+      inFlightRequests.clear();
+      await persistCacheToStorage();
+    },
   };
+}
+
+function createCacheSongGroupKey(cacheKey: string): string {
+  if (cacheKey.startsWith('fallback-original__')) {
+    return cacheKey;
+  }
+
+  if (cacheKey.startsWith('fallback-translated__')) {
+    const [prefix, trackKey] = cacheKey.split('__');
+    return [prefix, trackKey].join('__');
+  }
+
+  const [source, , lineCount, lyricsHash] = cacheKey.split('__');
+  return ['translated', source ?? '', lineCount ?? '', lyricsHash ?? cacheKey].join('__');
 }
 
 function isCacheEntrySnapshot(value: unknown): value is CacheEntrySnapshot {

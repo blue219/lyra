@@ -1,7 +1,12 @@
 import { getExtensionApi, isExtensionContextInvalidatedError } from '../../shared/extension-api';
 import { fetchLyricsFromLrclib } from './lrclib';
 import { translateLyricsResult } from '../translation/translate';
-import type { LyricLine, LyricsResult, TrackIdentity } from '../../shared/types';
+import type {
+  CacheSummary,
+  LyricLine,
+  LyricsResult,
+  TrackIdentity,
+} from '../../shared/types';
 
 export interface FetchLyricsMessage {
   type: 'lyra:fetchLyrics';
@@ -21,11 +26,21 @@ export interface TranslateLyricsMessage {
   source?: LyricsResult['source'];
 }
 
+export interface GetLyricsCacheSummaryMessage {
+  type: 'lyra:getLyricsCacheSummary';
+}
+
+export interface ClearLyricsCacheMessage {
+  type: 'lyra:clearLyricsCache';
+}
+
 const unavailableLyricsResult: LyricsResult = {
   status: 'unavailable',
   unavailableReason: 'extension-context-invalidated',
   lines: [],
 };
+
+type ExtensionApi = ReturnType<typeof getExtensionApi>;
 
 export function isFetchLyricsMessage(value: unknown): value is FetchLyricsMessage {
   if (!value || typeof value !== 'object') {
@@ -59,6 +74,24 @@ export function isTranslateLyricsMessage(
   const message = value as Partial<TranslateLyricsMessage>;
 
   return message.type === 'lyra:translateLyrics' && Array.isArray(message.lines);
+}
+
+export function isGetLyricsCacheSummaryMessage(
+  value: unknown,
+): value is GetLyricsCacheSummaryMessage {
+  if (!value || typeof value !== 'object') {
+    return false;
+  }
+
+  return (value as Partial<GetLyricsCacheSummaryMessage>).type === 'lyra:getLyricsCacheSummary';
+}
+
+export function isClearLyricsCacheMessage(value: unknown): value is ClearLyricsCacheMessage {
+  if (!value || typeof value !== 'object') {
+    return false;
+  }
+
+  return (value as Partial<ClearLyricsCacheMessage>).type === 'lyra:clearLyricsCache';
 }
 
 export function requestLyrics(
@@ -157,6 +190,39 @@ export function requestTranslatedLyrics(
       ),
     );
   }
+}
+
+export async function getLyricsCacheSummary(
+  extensionApi: ExtensionApi = getExtensionApi(),
+): Promise<CacheSummary> {
+  const message: GetLyricsCacheSummaryMessage = {
+    type: 'lyra:getLyricsCacheSummary',
+  };
+
+  if (!extensionApi?.runtime) {
+    return {
+      songCount: 0,
+      entryCount: 0,
+      maxEntries: 0,
+      sizeBytes: 0,
+    };
+  }
+
+  return extensionApi.runtime.sendMessage(message) as Promise<CacheSummary>;
+}
+
+export async function clearLyricsCache(
+  extensionApi: ExtensionApi = getExtensionApi(),
+): Promise<void> {
+  const message: ClearLyricsCacheMessage = {
+    type: 'lyra:clearLyricsCache',
+  };
+
+  if (!extensionApi?.runtime) {
+    return;
+  }
+
+  await extensionApi.runtime.sendMessage(message);
 }
 
 function handleMessageError(

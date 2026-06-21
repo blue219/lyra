@@ -8,7 +8,11 @@ import {
   getPhaseLabel,
   getSettingsEntryStyle,
 } from './settings-entry';
-import type { LyricsResult, OverlaySettings } from '../../shared/types';
+import type {
+  CacheSummary,
+  LyricsResult,
+  OverlaySettings,
+} from '../../shared/types';
 
 const settings: OverlaySettings = {
   targetLanguage: 'zh-CN',
@@ -29,15 +33,26 @@ const bilingualLyrics: LyricsResult = {
   ],
 };
 
+const cacheSummary: CacheSummary = {
+  songCount: 12,
+  entryCount: 14,
+  maxEntries: 200,
+  sizeBytes: 3_584,
+};
+
 describe('SettingsEntry', () => {
   test('renders the settings trigger without the popover by default', () => {
     const html = renderToStaticMarkup(
       <SettingsEntry
         anchor={null}
+        cacheSummary={cacheSummary}
         isOpen={false}
+        isCachePending={false}
+        isClearingCache={false}
         lyrics={bilingualLyrics}
         phase="ready"
         settings={settings}
+        onClearCache={() => undefined}
         onOpenChange={() => undefined}
         onSettingsChange={() => undefined}
       />,
@@ -55,8 +70,12 @@ describe('SettingsEntry', () => {
         lyrics={bilingualLyrics}
         phase="loading-translation"
         settings={settings}
+        cacheSummary={cacheSummary}
+        isCachePending={false}
+        isClearingCache={false}
         onOpenChange={() => undefined}
         onSettingsChange={() => undefined}
+        onClearCache={() => undefined}
       />,
     );
 
@@ -68,6 +87,14 @@ describe('SettingsEntry', () => {
     expect(html).toContain('Spanish');
     expect(html).toContain('Font size');
     expect(html).toContain('Dynamic background');
+    expect(html).toContain('Cache');
+    expect(html).toContain('Cached songs');
+    expect(html).toContain('12/200');
+    expect(html).toContain('Cache size');
+    expect(html).toContain('3.5 KB');
+    expect(html).toContain('Clear');
+    expect(html).toContain('bg-[#ff1010]');
+    expect(html).toContain('rounded-[999px] bg-[#ff1010]');
     expect(html).toContain('aria-checked="true"');
     expect(html).toContain('Loading lyric translation.');
     expect(html).toContain('right:24px');
@@ -91,6 +118,8 @@ describe('SettingsEntry', () => {
     expect(html).toContain('right-[14px]');
     expect(html).toContain('h-4 w-4');
     expect(html).toContain('pr-[10px]');
+    expect(html).not.toContain('border-t border-white/10');
+    expect(html).not.toContain('Falls back to static when motion should be reduced.');
   });
 
   test('renders the dynamic background switch as off when disabled', () => {
@@ -101,8 +130,12 @@ describe('SettingsEntry', () => {
         lyrics={bilingualLyrics}
         phase="ready"
         settings={{ ...settings, dynamicBackground: false }}
+        cacheSummary={cacheSummary}
+        isCachePending={false}
+        isClearingCache={false}
         onOpenChange={() => undefined}
         onSettingsChange={() => undefined}
+        onClearCache={() => undefined}
       />,
     );
 

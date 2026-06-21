@@ -6,6 +6,7 @@ import {
   keepReplacementLyricsInView,
   shouldPauseReplacementAutoScroll,
   shouldPauseReplacementAutoScrollOnMouseDown,
+  shouldRefreshCacheSummaryOnOpen,
   shouldTrackManualReplacementScroll,
   shouldMountLyricsExperience,
 } from './content-app';
@@ -127,6 +128,29 @@ describe('manual replacement scroll tracking', () => {
           clientY: 120,
         }),
       ),
+    ).toBe(false);
+  });
+});
+
+describe('cache summary refresh', () => {
+  test('refreshes cache summary only when the settings panel transitions from closed to open', () => {
+    expect(
+      shouldRefreshCacheSummaryOnOpen({
+        wasOpen: false,
+        isOpen: true,
+      }),
+    ).toBe(true);
+    expect(
+      shouldRefreshCacheSummaryOnOpen({
+        wasOpen: true,
+        isOpen: true,
+      }),
+    ).toBe(false);
+    expect(
+      shouldRefreshCacheSummaryOnOpen({
+        wasOpen: true,
+        isOpen: false,
+      }),
     ).toBe(false);
   });
 });

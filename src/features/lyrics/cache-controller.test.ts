@@ -421,6 +421,93 @@ describe('createLyricsCacheController', () => {
       expect.any(Error),
     );
   });
+
+  test('returns grouped cache summary for songs and storage size', async () => {
+    const storage = createStorage();
+    const controller = createController({
+      storage,
+      translateLyrics: vi.fn(async (result: LyricsResult, targetLanguage: string | undefined) => {
+        const original = result.lines[0]?.original;
+
+        if (original === 'Another song') {
+          return {
+            ...bilingualResult,
+            lines: [
+              {
+                ...originalLine,
+                original: 'Another song',
+                translated: '另一首歌',
+                translatedLanguage: targetLanguage,
+              },
+            ],
+          } satisfies LyricsResult;
+        }
+
+        return {
+          ...bilingualResult,
+          lines: [
+            {
+              ...originalLine,
+              original: original ?? '',
+              translated: '你好',
+              translatedLanguage: targetLanguage,
+            },
+          ],
+        } satisfies LyricsResult;
+      }),
+    });
+
+    await controller.handleTranslateLyrics({
+      type: 'lyra:translateLyrics',
+      lines: [originalLine],
+      targetLanguage: 'zh-CN',
+      source: 'spotify',
+    });
+    await controller.handleTranslateLyrics({
+      type: 'lyra:translateLyrics',
+      lines: [{ timeMs: 0, original: 'Hello' }],
+      targetLanguage: 'ja-JP',
+      source: 'spotify',
+    });
+    await controller.handleTranslateLyrics({
+      type: 'lyra:translateLyrics',
+      lines: [{ timeMs: 0, original: 'Another song' }],
+      targetLanguage: 'zh-CN',
+      source: 'spotify',
+    });
+
+    const summary = await controller.getCacheSummary();
+
+    expect(summary.songCount).toBe(2);
+    expect(summary.entryCount).toBe(3);
+    expect(summary.maxEntries).toBe(200);
+    expect(summary.sizeBytes).toBeGreaterThan(0);
+  });
+
+  test('clears in-memory and persisted cache entries', async () => {
+    const storage = createStorage();
+    const controller = createController({
+      storage,
+      translateLyrics: vi.fn(async () => bilingualResult),
+    });
+
+    await controller.handleTranslateLyrics({
+      type: 'lyra:translateLyrics',
+      lines: [originalLine],
+      targetLanguage: 'zh-CN',
+      source: 'spotify',
+    });
+
+    await controller.clearCache();
+
+    await expect(controller.getCacheSummary()).resolves.toEqual({
+      songCount: 0,
+      entryCount: 0,
+      maxEntries: 200,
+      sizeBytes: 2,
+    });
+    expect(storage.state[storageKey]).toEqual([]);
+  });
 });
 
 function createController({
