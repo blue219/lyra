@@ -12,10 +12,10 @@ Translation uses Google Translate's web endpoint first, then falls back to Micro
 2. Run `npm run dev`.
 3. Open your existing Chrome window and visit `chrome://extensions`.
 4. Enable developer mode.
-5. Load the unpacked extension from `.output/chrome-mv3`.
+5. Load the unpacked extension from `.output/chrome-mv3-dev`.
 6. Open Spotify Web Player, open Spotify's lyrics view, and verify Lyra-rendered lyrics replace the native lyric text after lyrics are visible.
 
-`npm run dev` uses WXT's manual runner so development happens inside your own Chrome session.
+`npm run dev` uses WXT's manual runner so development happens inside your own Chrome session. Use `.output/chrome-mv3` only after running `npm run build` for a production bundle.
 
 ## Scripts
 
@@ -40,6 +40,7 @@ The extension manifest grants `storage`, `https://lrclib.net/*`, `https://transl
 - Visible Spotify lyrics are the preferred source and are translated through the provider chain.
 - Spotify lyrics that show the "These lyrics aren't synced to the song yet." notice fall back to LRCLIB when track metadata is available.
 - Native Spotify lyric text is visually hidden while Lyra's own original and translated lyric page appears in the same lyrics area.
+- Lyra's replacement lyrics page keeps a non-interactive aurora background behind the lyrics content. The dynamic WebGL layer can be disabled in settings and falls back to a static gradient when WebGL is unavailable, the page is hidden, or reduced motion is preferred.
 - Lyra shows a small English source label above the lyrics: `Source: Native`, `Source: LRCLIB`, or `No lyrics available`.
 - Lyra's replacement lyrics area can be manually scrolled and automatically centers the active lyric line during playback.
 - Lyra replacement lyric lines show a pointer cursor and can be clicked to switch Lyra's active line. LRCLIB fallback lines also seek playback by their synced timestamp.
@@ -50,6 +51,7 @@ The extension manifest grants `storage`, `https://lrclib.net/*`, `https://transl
 - Monolingual, translated, and unavailable lyric states remain readable.
 - Supported target language settings persist across refresh.
 - Font size settings persist across refresh.
+- Dynamic background preference persists across refresh.
 
 ## Code organization
 
@@ -109,7 +111,7 @@ Lyra calls Google Translate's web endpoint first with `client=gtx`, `sl=auto`, a
 
 ## Troubleshooting
 
-- If no Lyra UI appears, confirm the extension is loaded from `.output/chrome-mv3`, the current page matches `https://open.spotify.com/*`, and Spotify's lyrics view is open.
+- If no Lyra UI appears, confirm the extension is loaded from `.output/chrome-mv3-dev` during development or from `.output/chrome-mv3` after `npm run build`, the current page matches `https://open.spotify.com/*`, and Spotify's lyrics view is open.
 - If original lyrics appear but translations do not, check whether `https://translate.googleapis.com/*`, `https://translator.bing.com/*`, or `https://www.bing.com/*` requests are blocked.
 - If the extension stops responding after a development reload, refresh the Spotify tab so the current content script reconnects to the latest background service worker.
 - If LRCLIB fallback never appears, confirm the current Spotify track title and artists are readable in the page and that `https://lrclib.net/*` requests are not blocked by the browser or network.

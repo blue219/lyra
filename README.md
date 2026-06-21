@@ -37,7 +37,8 @@ Translation uses Google Translate's web endpoint first, then falls back to Micro
 - Displays original and translated lyrics together.
 - Highlights the active lyric line during playback.
 - Supports line clicks for active-line selection and LRCLIB timestamp seeking.
-- Persists basic overlay settings such as target language and font size.
+- Persists basic overlay settings such as target language, font size, and dynamic background preference.
+- Renders a low-power aurora background that can fall back to a static gradient.
 - Keeps translation failure graceful by showing original lyrics when translation is unavailable.
 
 ## Tech Stack
@@ -49,6 +50,7 @@ Translation uses Google Translate's web endpoint first, then falls back to Micro
 | Language | TypeScript 6 |
 | Build tooling | Vite 8 |
 | Testing | Vitest, jsdom |
+| Background rendering | OGL WebGL renderer |
 | Lyrics source | Spotify Web Player DOM, LRCLIB |
 | Translation | Google, Microsoft Translator, and Bing Translator web endpoints |
 
@@ -92,8 +94,10 @@ Load the unpacked extension:
 1. Open `chrome://extensions`.
 2. Enable developer mode.
 3. Click **Load unpacked**.
-4. Select `.output/chrome-mv3`.
+4. Select `.output/chrome-mv3-dev`.
 5. Open Spotify Web Player and navigate to the lyrics view.
+
+Use `.output/chrome-mv3` only after running `npm run build` for a production bundle.
 
 ## Configuration
 
@@ -120,7 +124,7 @@ npm run compile
 npm run build
 ```
 
-For browser-level validation, load `.output/chrome-mv3`, open Spotify Web Player, enter the lyrics view, and confirm that Lyra renders the replacement lyrics page with readable original and translated lines.
+For browser-level validation during development, load `.output/chrome-mv3-dev`, open Spotify Web Player, enter the lyrics view, and confirm that Lyra renders the replacement lyrics page with readable original and translated lines. The settings popover can disable the dynamic aurora background for a static gradient fallback. For a production bundle, run `npm run build` and load `.output/chrome-mv3`.
 
 ## Documentation
 

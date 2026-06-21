@@ -13,6 +13,7 @@ import type { LyricsResult, OverlaySettings } from '../../shared/types';
 const settings: OverlaySettings = {
   targetLanguage: 'zh-CN',
   fontSize: 'md',
+  dynamicBackground: true,
 };
 
 const bilingualLyrics: LyricsResult = {
@@ -66,6 +67,8 @@ describe('SettingsEntry', () => {
     expect(html).toContain('Korean');
     expect(html).toContain('Spanish');
     expect(html).toContain('Font size');
+    expect(html).toContain('Dynamic background');
+    expect(html).toContain('aria-checked="true"');
     expect(html).toContain('Loading lyric translation.');
     expect(html).toContain('right:24px');
     expect(html).toContain('top:48px');
@@ -88,6 +91,23 @@ describe('SettingsEntry', () => {
     expect(html).toContain('right-[14px]');
     expect(html).toContain('h-4 w-4');
     expect(html).toContain('pr-[10px]');
+  });
+
+  test('renders the dynamic background switch as off when disabled', () => {
+    const html = renderToStaticMarkup(
+      <SettingsEntry
+        anchor={null}
+        isOpen
+        lyrics={bilingualLyrics}
+        phase="ready"
+        settings={{ ...settings, dynamicBackground: false }}
+        onOpenChange={() => undefined}
+        onSettingsChange={() => undefined}
+      />,
+    );
+
+    expect(html).toContain('Dynamic background');
+    expect(html).toContain('aria-checked="false"');
   });
 });
 

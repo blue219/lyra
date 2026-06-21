@@ -7,6 +7,7 @@ const targetLanguages = new Set(supportedLanguages.map((language) => language.va
 export const defaultOverlaySettings: OverlaySettings = {
   targetLanguage: 'en-US',
   fontSize: 'md',
+  dynamicBackground: true,
 };
 
 export function sanitizeOverlaySettings(value: unknown): OverlaySettings {
@@ -24,9 +25,14 @@ export function sanitizeOverlaySettings(value: unknown): OverlaySettings {
   const fontSize = fontSizes.has(candidate.fontSize as OverlaySettings['fontSize'])
     ? (candidate.fontSize as OverlaySettings['fontSize'])
     : defaultOverlaySettings.fontSize;
+  const dynamicBackground =
+    typeof candidate.dynamicBackground === 'boolean'
+      ? candidate.dynamicBackground
+      : defaultOverlaySettings.dynamicBackground;
 
   return {
     targetLanguage,
     fontSize,
+    dynamicBackground,
   };
 }

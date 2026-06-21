@@ -33,4 +33,5 @@ export interface LyricsResult {
 export interface OverlaySettings {
   targetLanguage: string;
   fontSize: 'sm' | 'md' | 'lg';
+  dynamicBackground: boolean;
 }

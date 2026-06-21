@@ -37,6 +37,7 @@ describe('sanitizeOverlaySettings', () => {
       ).toEqual({
         targetLanguage,
         fontSize: 'md',
+        dynamicBackground: true,
       });
     });
   });
@@ -46,10 +47,25 @@ describe('sanitizeOverlaySettings', () => {
       sanitizeOverlaySettings({
         targetLanguage: 'en-US',
         fontSize: 'lg',
+        dynamicBackground: false,
       }),
     ).toEqual({
       targetLanguage: 'en-US',
       fontSize: 'lg',
+      dynamicBackground: false,
+    });
+  });
+
+  test('defaults dynamic background on for existing stored settings', () => {
+    expect(
+      sanitizeOverlaySettings({
+        targetLanguage: 'zh-CN',
+        fontSize: 'sm',
+      }),
+    ).toEqual({
+      targetLanguage: 'zh-CN',
+      fontSize: 'sm',
+      dynamicBackground: true,
     });
   });
 
@@ -74,10 +90,12 @@ describe('sanitizeOverlaySettings', () => {
       sanitizeOverlaySettings({
         targetLanguage: 'zh-CN',
         fontSize: 'sm',
+        dynamicBackground: true,
       }),
     ).toEqual({
       targetLanguage: 'zh-CN',
       fontSize: 'sm',
+      dynamicBackground: true,
     });
   });
 });

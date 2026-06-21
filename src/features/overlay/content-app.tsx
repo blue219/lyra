@@ -449,6 +449,7 @@ export function ContentApp() {
         ? createPortal(
             <ReplacementLyrics
               activeLineIndex={activeLineIndex}
+              dynamicBackground={settings.dynamicBackground}
               fontSize={settings.fontSize}
               phase={phase}
               lyrics={lyrics}

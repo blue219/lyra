@@ -32,6 +32,7 @@ describe('ReplacementLyrics', () => {
     const html = renderToStaticMarkup(
       <ReplacementLyrics
         activeLineIndex={1}
+        dynamicBackground
         fontSize="md"
         phase="ready"
         lyrics={bilingualLyrics}
@@ -46,6 +47,7 @@ describe('ReplacementLyrics', () => {
     const html = renderToStaticMarkup(
       <ReplacementLyrics
         activeLineIndex={0}
+        dynamicBackground
         fontSize="md"
         phase="ready"
         lyrics={{
@@ -63,6 +65,7 @@ describe('ReplacementLyrics', () => {
     const html = renderToStaticMarkup(
       <ReplacementLyrics
         activeLineIndex={1}
+        dynamicBackground
         fontSize="md"
         phase="ready"
         lyrics={bilingualLyrics}
@@ -84,6 +87,7 @@ describe('ReplacementLyrics', () => {
     const html = renderToStaticMarkup(
       <ReplacementLyrics
         activeLineIndex={0}
+        dynamicBackground
         fontSize="md"
         phase="ready"
         lyrics={bilingualLyrics}
@@ -95,10 +99,56 @@ describe('ReplacementLyrics', () => {
     expect(html).toContain('data-lyra-replacement-scroll="true"');
   });
 
+  test('renders a non-interactive aurora background layer behind the lyrics content', () => {
+    const html = renderToStaticMarkup(
+      <ReplacementLyrics
+        activeLineIndex={0}
+        dynamicBackground
+        fontSize="md"
+        phase="ready"
+        lyrics={bilingualLyrics}
+        targetLanguage="zh-CN"
+      />,
+    );
+
+    expect(html).toContain('data-lyra-aurora="true"');
+    expect(html).toContain('pointer-events:none');
+    expect(html).toContain('position:sticky');
+    expect(html).toContain('top:0');
+    expect(html).toContain('margin-bottom:calc(-1 * (100vh - 96px))');
+    expect(html).toContain('overflow-y:auto;position:relative;scroll-behavior:smooth;width:100%');
+    expect(html).toContain('data-lyra-aurora-shell="true"');
+    expect(html).toContain('padding:64px clamp(20px, 4vw, 48px);position:relative;width:100%;z-index:1');
+    expect(html).toContain('rgba(96, 58, 255, 0.24)');
+    expect(html).toContain('rgba(106, 255, 173, 0.2)');
+    expect(html).toContain('data-lyra-aurora-static="true"');
+    expect(html).toContain('data-lyra-aurora-canvas="true"');
+    expect(html).toContain('height:100%;inset:0;pointer-events:none;position:absolute;width:100%;opacity:0.62');
+  });
+
+  test('renders only the static aurora fallback when dynamic background is disabled', () => {
+    const html = renderToStaticMarkup(
+      <ReplacementLyrics
+        activeLineIndex={0}
+        dynamicBackground={false}
+        fontSize="md"
+        phase="ready"
+        lyrics={bilingualLyrics}
+        targetLanguage="zh-CN"
+      />,
+    );
+
+    expect(html).toContain('data-lyra-aurora="true"');
+    expect(html).toContain('data-lyra-aurora-static="true"');
+    expect(html).not.toContain('data-lyra-aurora-canvas="true"');
+    expect(html).not.toContain('data-lyra-aurora-drift="true"');
+  });
+
   test('renders lyric rows as clickable controls with a pointer cursor', () => {
     const html = renderToStaticMarkup(
       <ReplacementLyrics
         activeLineIndex={0}
+        dynamicBackground
         fontSize="md"
         phase="ready"
         lyrics={bilingualLyrics}
@@ -116,6 +166,7 @@ describe('ReplacementLyrics', () => {
     const html = renderToStaticMarkup(
       <ReplacementLyrics
         activeLineIndex={0}
+        dynamicBackground
         fontSize="md"
         phase="ready"
         lyrics={bilingualLyrics}
@@ -135,6 +186,7 @@ describe('ReplacementLyrics', () => {
       root.render(
         <ReplacementLyrics
           activeLineIndex={0}
+          dynamicBackground
           fontSize="md"
           phase="ready"
           lyrics={bilingualLyrics}
@@ -160,6 +212,7 @@ describe('ReplacementLyrics', () => {
     const html = renderToStaticMarkup(
       <ReplacementLyrics
         activeLineIndex={-1}
+        dynamicBackground
         fontSize="md"
         phase="loading-lyrics"
         lyrics={{ status: 'unavailable', lines: [] }}
@@ -199,6 +252,7 @@ describe('ReplacementLyrics', () => {
     const html = renderToStaticMarkup(
       <ReplacementLyrics
         activeLineIndex={-1}
+        dynamicBackground
         fontSize="md"
         phase="loading-translation"
         lyrics={{
@@ -238,6 +292,7 @@ describe('ReplacementLyrics', () => {
     const html = renderToStaticMarkup(
       <ReplacementLyrics
         activeLineIndex={-1}
+        dynamicBackground
         fontSize="md"
         phase="unavailable"
         lyrics={{ status: 'unavailable', lines: [] }}

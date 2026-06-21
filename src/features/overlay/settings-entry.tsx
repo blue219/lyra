@@ -106,6 +106,42 @@ export function SettingsEntry({
             </div>
           </div>
 
+          <div className="mt-5 flex items-center justify-between gap-4">
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-[4px] text-white/70">
+                Dynamic background
+              </p>
+              <p className="mt-1 text-[0.72rem] leading-4 text-white/56">
+                Falls back to static when motion should be reduced.
+              </p>
+            </div>
+            <button
+              aria-checked={settings.dynamicBackground}
+              aria-label="Toggle dynamic background"
+              className={[
+                'relative h-7 w-12 shrink-0 rounded-[999px] border transition',
+                settings.dynamicBackground
+                  ? 'border-[var(--lyra-color-accent)] bg-[var(--lyra-color-accent)]/85'
+                  : 'border-white/25 bg-white/10',
+              ].join(' ')}
+              role="switch"
+              type="button"
+              onClick={() =>
+                onSettingsChange({
+                  dynamicBackground: !settings.dynamicBackground,
+                })
+              }
+            >
+              <span
+                aria-hidden="true"
+                className={[
+                  'absolute top-1/2 h-5 w-5 -translate-y-1/2 rounded-full bg-white shadow-[0_2px_8px_rgba(0,0,0,0.28)] transition',
+                  settings.dynamicBackground ? 'left-[22px]' : 'left-1',
+                ].join(' ')}
+              />
+            </button>
+          </div>
+
           <p className="mt-5 text-[0.8rem] leading-5 text-white/68">
             {getPhaseLabel(phase, lyrics)}
           </p>
