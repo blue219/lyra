@@ -62,11 +62,11 @@ The extension manifest grants `storage`, `https://lrclib.net/*`, `https://transl
 
 Lyra keeps extension entrypoints in `entrypoints/` and feature code in `src/features/`.
 
-- `overlay`: lyrics page replacement rendering, settings entry UI, and content-script state orchestration.
+- `overlay`: lyrics page replacement rendering, settings entry UI, content-script state orchestration hooks, and replacement scroll behavior.
 - `spotify`: Spotify Web Player DOM readers and track identity helpers.
 - `lyrics`: synced lyric parsing, LRCLIB fallback, lyrics cache, and runtime messages.
-- `translation`: translation provider orchestration, request handling, response parsing, and degradation behavior.
-- `settings`: inline lyric settings defaults and validation.
+- `translation`: translation provider orchestration, provider-specific request handling, response parsing, line-boundary validation, and degradation behavior.
+- `settings`: inline lyric settings defaults, validation, persistence helpers, and shared React settings state.
 - `shared`: cross-feature types, supported language registry, and browser extension API helpers.
 
 ## Spotify lyrics replacement behavior

@@ -1,106 +1,86 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 
-import { ReplacementLyrics } from './replacement-lyrics';
+import { getExtensionApi } from '../../shared/extension-api';
+import { useLyricsCacheSummary } from '../lyrics/use-lyrics-cache-summary';
+import { useOverlaySettings } from '../settings/use-overlay-settings';
+import {
+  clickSpotifyLyricLine,
+  markNativeSpotifyLyricsHidden,
+  seekSpotifyPlaybackToMs,
+} from '../spotify/spotify-dom';
 import { clearInlineLyrics } from './inline-lyrics';
 import {
-  SettingsEntry,
-  readSettingsAnchor,
-  type SettingsAnchor,
-} from './settings-entry';
-import {
-  calculateCenteredScrollTop,
-  createLyricsKey,
-  createLyricsRequestKey,
-  emptyLyricsResult,
   getInitialSelectedLineState,
   getReplacementActiveLineIndex,
   getSelectedLineIndex,
   getSelectedPlaybackPositionMs,
   getVisibleActiveLineIndex,
-  loadLyricsSelection,
   selectLyricsRequest,
   shouldClearSelectedLineState,
   shouldRequestVisibleSpotifyLyrics,
-  shouldResetScrollTopOnPlaybackReset,
-  shouldStartLyricsRequest,
-  type OverlayPhase,
   type SelectedLineState,
 } from './lyrics-flow';
-import { defaultOverlaySettings, sanitizeOverlaySettings } from '../settings/settings';
+import { ReplacementLyrics } from './replacement-lyrics';
+import { removeReplacementHosts } from './replacement-host';
 import {
-  loadOverlaySettings,
-  saveOverlaySettings,
-  subscribeOverlaySettings,
-} from '../settings/settings-storage';
-import {
-  clearLyricsCache,
-  getLyricsCacheSummary,
-} from '../lyrics/messages';
-import {
-  clickSpotifyLyricLine,
-  hasUnsyncedSpotifyLyricsNotice,
-  markNativeSpotifyLyricsHidden,
-  readCurrentTrackIdentity,
-  readPlaybackPositionMs,
-  readSpotifyLyricsPageContainer,
-  readSpotifyLyricsSnapshot,
-  seekSpotifyPlaybackToMs,
-} from '../spotify/spotify-dom';
-import { getExtensionApi } from '../../shared/extension-api';
-import type {
-  CacheSummary,
-  LyricLine,
-  LyricsResult,
-  OverlaySettings,
-  TrackIdentity,
-} from '../../shared/types';
+  keepReplacementLyricsInView,
+  useReplacementAutoScroll,
+} from './replacement-scroll';
+import { SettingsEntry } from './settings-entry';
+import { useLoadedLyrics } from './use-loaded-lyrics';
+import { useSpotifyLyricsExperience } from './use-spotify-lyrics-experience';
 
-const replacementHostAttribute = 'data-lyra-replacement-host';
-const replacementLineSelector = '.lyra-replacement-line';
-const replacementAutoScrollPauseMs = 2_500;
+export {
+  shouldMountLyricsExperience,
+} from './replacement-host';
+export {
+  keepReplacementLyricsInView,
+  shouldPauseReplacementAutoScroll,
+  shouldPauseReplacementAutoScrollOnMouseDown,
+  shouldTrackManualReplacementScroll,
+} from './replacement-scroll';
 
 export function ContentApp() {
-  const extensionApi = getExtensionApi();
-  const [lyrics, setLyrics] = useState<LyricsResult>(emptyLyricsResult);
-  const [phase, setPhase] = useState<OverlayPhase>('waiting-track');
-  const [spotifyActiveLineIndex, setSpotifyActiveLineIndex] = useState(-1);
-  const [spotifyLyricsLines, setSpotifyLyricsLines] = useState<LyricLine[]>([]);
-  const [currentTrack, setCurrentTrack] = useState<TrackIdentity | null>(null);
-  const [playbackPositionMs, setPlaybackPositionMs] = useState<number | null>(null);
-  const [hasUnsyncedSpotifyLyrics, setHasUnsyncedSpotifyLyrics] = useState(false);
-  const [settings, setSettings] = useState<OverlaySettings>(defaultOverlaySettings);
-  const [settingsLoaded, setSettingsLoaded] = useState(false);
+  const [extensionApi] = useState(() => getExtensionApi());
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [settingsAnchor, setSettingsAnchor] = useState<SettingsAnchor | null>(null);
-  const [cacheSummary, setCacheSummary] = useState<CacheSummary>({
-    songCount: 0,
-    entryCount: 0,
-    maxEntries: 0,
-    sizeBytes: 0,
-  });
-  const [isCachePending, setIsCachePending] = useState(true);
-  const [isClearingCache, setIsClearingCache] = useState(false);
-  const [replacementHost, setReplacementHost] = useState<HTMLElement | null>(null);
-  const [lyricsDomVersion, setLyricsDomVersion] = useState(0);
   const [selectedLineState, setSelectedLineState] = useState<SelectedLineState | null>(
     null,
   );
-  const previousPlaybackPositionMsRef = useRef<number | null>(null);
-  const replacementAutoScrollPauseUntilMsRef = useRef(0);
-  const isProgrammaticReplacementScrollRef = useRef(false);
   const previousSettingsOpenRef = useRef(false);
-
+  const {
+    settings,
+    isSettingsLoaded,
+    updateSettings,
+  } = useOverlaySettings(extensionApi);
+  const {
+    cacheSummary,
+    isCachePending,
+    isClearingCache,
+    refreshCacheSummary,
+    clearCache,
+  } = useLyricsCacheSummary({ extensionApi });
+  const {
+    spotifyActiveLineIndex,
+    spotifyLyricsLines,
+    currentTrack,
+    playbackPositionMs,
+    setPlaybackPositionMs,
+    hasUnsyncedSpotifyLyrics,
+    settingsAnchor,
+    replacementHost,
+    lyricsDomVersion,
+  } = useSpotifyLyricsExperience();
   const lyricsSelection = selectLyricsRequest(
     spotifyLyricsLines,
     currentTrack,
     hasUnsyncedSpotifyLyrics,
   );
-  const lyricsRequestKey = createLyricsRequestKey(
-    lyricsSelection,
-    settings.targetLanguage,
-    settingsLoaded,
-  );
+  const { lyrics, phase, lyricsRequestKey } = useLoadedLyrics({
+    selection: lyricsSelection,
+    targetLanguage: settings.targetLanguage,
+    settingsLoaded: isSettingsLoaded,
+  });
   const syncedActiveLineIndex = getReplacementActiveLineIndex({
     lyricsSource: lyrics.source,
     spotifyActiveLineIndex,
@@ -111,47 +91,6 @@ export function ContentApp() {
     selectedLineIndex: getSelectedLineIndex(selectedLineState),
     syncedActiveLineIndex,
   });
-
-  useEffect(() => {
-    let isCancelled = false;
-
-    loadOverlaySettings(extensionApi)
-      .then((nextSettings) => {
-        if (isCancelled) {
-          return;
-        }
-
-        setSettings(nextSettings);
-        setSettingsLoaded(true);
-      })
-      .catch(() => {
-        if (!isCancelled) {
-          setSettings(defaultOverlaySettings);
-          setSettingsLoaded(true);
-        }
-      });
-
-    return () => {
-      isCancelled = true;
-    };
-  }, [extensionApi]);
-
-  useEffect(() => {
-    return subscribeOverlaySettings(extensionApi, (nextSettings) => {
-      setSettings(nextSettings);
-      setSettingsLoaded(true);
-    });
-  }, [extensionApi]);
-
-  async function refreshCacheSummary(): Promise<void> {
-    setIsCachePending(true);
-
-    try {
-      setCacheSummary(await getLyricsCacheSummary(extensionApi));
-    } finally {
-      setIsCachePending(false);
-    }
-  }
 
   useEffect(() => {
     const shouldRefresh = shouldRefreshCacheSummaryOnOpen({
@@ -166,92 +105,10 @@ export function ContentApp() {
     }
 
     void refreshCacheSummary();
-  }, [settingsOpen]);
+  }, [refreshCacheSummary, settingsOpen]);
 
   useEffect(() => {
-    const syncPlaybackState = () => {
-      const nextSpotifyLyrics = readSpotifyLyricsSnapshot();
-      const lyricsContainer = readSpotifyLyricsPageContainer();
-      const nextHost = lyricsContainer
-        ? ensureReplacementHost(document, lyricsContainer)
-        : null;
-
-      setReplacementHost((currentHost) =>
-        currentHost === nextHost ? currentHost : nextHost,
-      );
-      setSettingsAnchor(readSettingsAnchor(lyricsContainer));
-      setSpotifyActiveLineIndex(nextSpotifyLyrics?.activeLineIndex ?? -1);
-      setSpotifyLyricsLines((currentLines) => {
-        const nextLines = nextSpotifyLyrics?.lines ?? [];
-        return createLyricsKey(currentLines) === createLyricsKey(nextLines)
-          ? currentLines
-          : nextLines;
-      });
-      setCurrentTrack(readCurrentTrackIdentity());
-      setPlaybackPositionMs(readPlaybackPositionMs());
-      setHasUnsyncedSpotifyLyrics(hasUnsyncedSpotifyLyricsNotice());
-      setLyricsDomVersion((version) => version + 1);
-    };
-
-    syncPlaybackState();
-
-    const intervalId = window.setInterval(syncPlaybackState, 1000);
-
-    return () => {
-      window.clearInterval(intervalId);
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!settingsLoaded) {
-      return;
-    }
-
     setSelectedLineState(null);
-
-    if (
-      !shouldStartLyricsRequest({
-        selection: lyricsSelection,
-        settingsLoaded,
-      })
-    ) {
-      setLyrics(emptyLyricsResult);
-      setPhase('waiting-track');
-      return;
-    }
-
-    let isCancelled = false;
-    loadLyricsSelection({
-      selection: lyricsSelection,
-      targetLanguage: settings.targetLanguage,
-      onPhaseChange: ({ phase: nextPhase, lyrics: nextLyrics }) => {
-        if (isCancelled) {
-          return;
-        }
-
-        setLyrics(nextLyrics);
-        setPhase(nextPhase);
-      },
-    })
-      .then(({ phase: nextPhase, lyrics: nextLyrics }) => {
-        if (isCancelled) {
-          return;
-        }
-
-        setLyrics(nextLyrics);
-        setPhase(nextPhase);
-      })
-      .catch(() => {
-        if (!isCancelled) {
-          console.error('[Lyra] content lyrics fetch rejected');
-          setLyrics(emptyLyricsResult);
-          setPhase('error');
-        }
-      });
-
-    return () => {
-      isCancelled = true;
-    };
   }, [lyricsRequestKey]);
 
   useEffect(() => {
@@ -282,170 +139,20 @@ export function ContentApp() {
     clearInlineLyrics();
   }, [lyricsDomVersion]);
 
-  useEffect(() => {
-    const scroller = replacementHost?.querySelector<HTMLElement>(
-      '[data-lyra-replacement-scroll="true"]',
-    );
-
-    if (!scroller) {
-      return;
-    }
-
-    let isPointerScrolling = false;
-
-    const pauseReplacementAutoScroll = () => {
-      replacementAutoScrollPauseUntilMsRef.current = Date.now() + replacementAutoScrollPauseMs;
-    };
-
-    const handleWheel = () => {
-      pauseReplacementAutoScroll();
-    };
-
-    const handlePointerDown = (event: PointerEvent) => {
-      if (!shouldTrackManualReplacementScroll(scroller, event.target)) {
-        return;
-      }
-
-      isPointerScrolling = true;
-      pauseReplacementAutoScroll();
-    };
-
-    const handleMouseDown = (event: MouseEvent) => {
-      if (!shouldPauseReplacementAutoScrollOnMouseDown(scroller, event)) {
-        return;
-      }
-
-      isPointerScrolling = true;
-      pauseReplacementAutoScroll();
-    };
-
-    const handlePointerUp = () => {
-      if (!isPointerScrolling) {
-        return;
-      }
-
-      isPointerScrolling = false;
-      pauseReplacementAutoScroll();
-    };
-
-    const handleScroll = () => {
-      if (isProgrammaticReplacementScrollRef.current) {
-        isProgrammaticReplacementScrollRef.current = false;
-        return;
-      }
-
-      if (isPointerScrolling) {
-        pauseReplacementAutoScroll();
-      }
-    };
-
-    scroller.addEventListener('wheel', handleWheel, { passive: true });
-    scroller.addEventListener('pointerdown', handlePointerDown);
-    scroller.addEventListener('mousedown', handleMouseDown);
-    scroller.addEventListener('scroll', handleScroll, { passive: true });
-    window.addEventListener('pointerup', handlePointerUp);
-    window.addEventListener('mouseup', handlePointerUp);
-
-    return () => {
-      scroller.removeEventListener('wheel', handleWheel);
-      scroller.removeEventListener('pointerdown', handlePointerDown);
-      scroller.removeEventListener('mousedown', handleMouseDown);
-      scroller.removeEventListener('scroll', handleScroll);
-      window.removeEventListener('pointerup', handlePointerUp);
-      window.removeEventListener('mouseup', handlePointerUp);
-    };
-  }, [replacementHost]);
-
-  useEffect(() => {
-    const scroller = replacementHost?.querySelector<HTMLElement>(
-      '[data-lyra-replacement-scroll="true"]',
-    );
-    const shouldResetScrollTop = shouldResetScrollTopOnPlaybackReset({
-      previousPlaybackPositionMs: previousPlaybackPositionMsRef.current,
-      playbackPositionMs,
-    });
-
-    previousPlaybackPositionMsRef.current = playbackPositionMs;
-
-    if (!scroller) {
-      return;
-    }
-
-    if (shouldResetScrollTop) {
-      scroller.scrollTop = 0;
-      return;
-    }
-
-    if (
-      shouldPauseReplacementAutoScroll({
-        pauseUntilMs: replacementAutoScrollPauseUntilMsRef.current,
-        nowMs: Date.now(),
-      })
-    ) {
-      return;
-    }
-
-    const activeLine = scroller.querySelector<HTMLElement>(
-      '[data-lyra-replacement-active="true"]',
-    );
-
-    if (!activeLine) {
-      return;
-    }
-
-    const scrollTop = calculateCenteredScrollTop({
-      activeOffsetTop: activeLine.offsetTop,
-      activeHeight: activeLine.offsetHeight,
-      containerHeight: scroller.clientHeight,
-      maxScrollTop: Math.max(0, scroller.scrollHeight - scroller.clientHeight),
-    });
-
-    if (typeof scroller.scrollTo === 'function') {
-      isProgrammaticReplacementScrollRef.current = true;
-      scroller.scrollTo({
-        top: scrollTop,
-        behavior: 'smooth',
-      });
-      return;
-    }
-
-    isProgrammaticReplacementScrollRef.current = true;
-    scroller.scrollTop = scrollTop;
-  }, [activeLineIndex, lyrics, playbackPositionMs, replacementHost]);
+  useReplacementAutoScroll({
+    activeLineIndex,
+    lyrics,
+    playbackPositionMs,
+    replacementHost,
+  });
 
   useEffect(() => {
     return () => {
       clearInlineLyrics();
       markNativeSpotifyLyricsHidden(document, false);
-      document
-        .querySelectorAll(`[${replacementHostAttribute}="true"]`)
-        .forEach((host) => host.remove());
+      removeReplacementHosts(document);
     };
   }, []);
-
-  function updateSettings(patch: Partial<OverlaySettings>) {
-    setSettings((currentSettings) => {
-      const nextSettings = sanitizeOverlaySettings({
-        ...currentSettings,
-        ...patch,
-      });
-
-      void saveOverlaySettings(extensionApi, nextSettings);
-
-      return nextSettings;
-    });
-  }
-
-  async function handleClearCache() {
-    setIsClearingCache(true);
-
-    try {
-      await clearLyricsCache(extensionApi);
-      await refreshCacheSummary();
-    } finally {
-      setIsClearingCache(false);
-    }
-  }
 
   function selectReplacementLine(index: number) {
     if (!lyrics.lines[index]) {
@@ -513,35 +220,12 @@ export function ContentApp() {
         lyrics={lyrics}
         phase={phase}
         settings={settings}
-        onClearCache={handleClearCache}
+        onClearCache={clearCache}
         onOpenChange={setSettingsOpen}
         onSettingsChange={updateSettings}
       />
     </>
   );
-}
-
-export function shouldMountLyricsExperience(
-  isLyricsPage: boolean,
-  hasVisibleLyrics: boolean,
-): boolean {
-  return isLyricsPage || hasVisibleLyrics;
-}
-
-export function keepReplacementLyricsInView(replacementHost: HTMLElement | null) {
-  replacementHost?.scrollIntoView({
-    block: 'start',
-  });
-}
-
-export function shouldPauseReplacementAutoScroll({
-  pauseUntilMs,
-  nowMs,
-}: {
-  pauseUntilMs: number;
-  nowMs: number;
-}): boolean {
-  return pauseUntilMs > nowMs;
 }
 
 export function shouldRefreshCacheSummaryOnOpen({
@@ -552,62 +236,4 @@ export function shouldRefreshCacheSummaryOnOpen({
   wasOpen: boolean;
 }): boolean {
   return isOpen && !wasOpen;
-}
-
-export function shouldTrackManualReplacementScroll(
-  scroller: HTMLElement,
-  eventTarget: EventTarget | null,
-): boolean {
-  if (!(eventTarget instanceof Element)) {
-    return false;
-  }
-
-  // Clicking a lyric row is a seek interaction, not a request to freeze lyric follow mode.
-  if (eventTarget.closest(replacementLineSelector)) {
-    return false;
-  }
-
-  return scroller.contains(eventTarget);
-}
-
-export function shouldPauseReplacementAutoScrollOnMouseDown(
-  scroller: HTMLElement,
-  event: MouseEvent,
-): boolean {
-  const verticalScrollbarWidth = scroller.offsetWidth - scroller.clientWidth;
-  const horizontalScrollbarHeight = scroller.offsetHeight - scroller.clientHeight;
-  const { left, top } = scroller.getBoundingClientRect();
-  const offsetX = event.clientX - left;
-  const offsetY = event.clientY - top;
-
-  if (verticalScrollbarWidth > 0 && offsetX >= scroller.clientWidth) {
-    return true;
-  }
-
-  // Native scrollbar presses may bypass pointer events, so detect gutter presses from coordinates.
-  if (horizontalScrollbarHeight > 0 && offsetY >= scroller.clientHeight) {
-    return true;
-  }
-
-  return false;
-}
-
-function ensureReplacementHost(
-  rootDocument: Document,
-  container: HTMLElement,
-): HTMLElement {
-  const existingHost = container.querySelector<HTMLElement>(
-    `:scope > [${replacementHostAttribute}="true"]`,
-  );
-
-  if (existingHost) {
-    return existingHost;
-  }
-
-  const host = rootDocument.createElement('div');
-  host.setAttribute(replacementHostAttribute, 'true');
-  host.className = 'lyra-replacement-host';
-  container.prepend(host);
-
-  return host;
 }

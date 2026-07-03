@@ -26,12 +26,12 @@ Lyra is a WXT Manifest V3 browser extension for Spotify Web Player.
 
 | Directory | Responsibility |
 | --- | --- |
-| `src/features/overlay` | React replacement lyrics page, settings entry, lyrics request orchestration, active-line selection, scroll behavior, and replacement rendering. |
+| `src/features/overlay` | React replacement lyrics page, settings entry, lyrics request orchestration, Spotify DOM polling hooks, active-line selection, scroll behavior, and replacement rendering. |
 | `src/features/popup` | Browser action popup that loads and persists overlay settings through extension storage. |
 | `src/features/spotify` | Spotify DOM readers, lyrics page detection, track identity extraction, active line detection, and playback seeking helpers. |
 | `src/features/lyrics` | LRCLIB lookup, synced lyrics parsing, cache controller, and runtime message contracts. |
-| `src/features/translation` | Translation provider orchestration, language-code mapping, line-boundary validation, and degradation behavior. |
-| `src/features/settings` | Overlay settings defaults and validation. |
+| `src/features/translation` | Translation provider orchestration, Google and Bing/Microsoft web providers, language-code mapping, line-boundary validation, and degradation behavior. |
+| `src/features/settings` | Overlay settings defaults, validation, persistence helpers, and shared React settings state. |
 | `src/shared` | Shared types, supported language registry, retry helpers, extension API wrappers, and test utilities. |
 
 ## Lyrics flow
