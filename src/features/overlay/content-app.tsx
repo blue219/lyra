@@ -217,8 +217,6 @@ export function ContentApp() {
         isOpen={settingsOpen}
         isCachePending={isCachePending}
         isClearingCache={isClearingCache}
-        lyrics={lyrics}
-        phase={phase}
         settings={settings}
         onClearCache={clearCache}
         onOpenChange={setSettingsOpen}

@@ -26,7 +26,6 @@ export function PopupApp({ extensionApi = getExtensionApi() }: PopupAppProps) {
     <main className="w-[274px] bg-[rgba(24,24,24,0.96)] text-[var(--lyra-color-text)]">
       <SettingsPanel
         cacheSummary={cacheSummary}
-        footerText="Lyra lyrics are synced with playback."
         isCachePending={isCachePending}
         isClearingCache={isClearingCache}
         settings={settings}

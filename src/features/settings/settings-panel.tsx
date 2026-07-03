@@ -3,7 +3,6 @@ import type { CacheSummary, OverlaySettings } from '../../shared/types';
 
 interface SettingsPanelProps {
   cacheSummary: CacheSummary;
-  footerText: string;
   isCachePending: boolean;
   isClearingCache: boolean;
   settings: OverlaySettings;
@@ -16,7 +15,6 @@ const languageOptions = supportedLanguages.map(({ value, label }) => ({ value, l
 
 export function SettingsPanel({
   cacheSummary,
-  footerText,
   isCachePending,
   isClearingCache,
   settings,
@@ -189,8 +187,6 @@ export function SettingsPanel({
           </div>
         </div>
       </div>
-
-      <p className="mt-5 text-[0.8rem] leading-5 text-white/68">{footerText}</p>
     </section>
   );
 }

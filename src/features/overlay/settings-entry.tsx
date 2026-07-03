@@ -1,9 +1,8 @@
 import type { CSSProperties } from 'react';
 
-import type { OverlayPhase } from './lyrics-flow';
 import settingsIconUrl from '../../assets/branding/toolbar/lyra-toolbar-green-transparent.png';
 import { SettingsPanel } from '../settings/settings-panel';
-import type { CacheSummary, LyricsResult, OverlaySettings } from '../../shared/types';
+import type { CacheSummary, OverlaySettings } from '../../shared/types';
 
 export interface SettingsAnchor {
   right: number;
@@ -16,8 +15,6 @@ interface SettingsEntryProps {
   isOpen: boolean;
   isCachePending: boolean;
   isClearingCache: boolean;
-  lyrics: LyricsResult;
-  phase: OverlayPhase;
   settings: OverlaySettings;
   onClearCache: () => void;
   onOpenChange: (isOpen: boolean) => void;
@@ -30,8 +27,6 @@ export function SettingsEntry({
   isOpen,
   isCachePending,
   isClearingCache,
-  lyrics,
-  phase,
   settings,
   onClearCache,
   onOpenChange,
@@ -68,7 +63,6 @@ export function SettingsEntry({
           />
           <SettingsPanel
             cacheSummary={cacheSummary}
-            footerText={getPhaseLabel(phase, lyrics)}
             isCachePending={isCachePending}
             isClearingCache={isClearingCache}
             settings={settings}
@@ -111,28 +105,4 @@ export function getSettingsEntryStyle(anchor: SettingsAnchor | null): CSSPropert
     right: anchor.right,
     top: anchor.top,
   };
-}
-
-export function getPhaseLabel(phase: OverlayPhase, lyrics: LyricsResult): string {
-  if (phase === 'loading-lyrics') {
-    return 'Loading synced lyrics.';
-  }
-
-  if (phase === 'loading-translation') {
-    return 'Loading lyric translation.';
-  }
-
-  if (phase === 'ready' && lyrics.status === 'bilingual') {
-    return 'Lyra lyrics are synced with playback.';
-  }
-
-  if (phase === 'ready' && lyrics.status === 'monolingual') {
-    return 'Showing original lyrics only for this language pair.';
-  }
-
-  if (phase === 'error') {
-    return 'Lyrics failed to load. Lyra will retry when the song changes.';
-  }
-
-  return 'Waiting for the current track.';
 }
