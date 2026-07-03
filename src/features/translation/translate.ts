@@ -151,6 +151,7 @@ async function translateWithProviderChain(
 
   let sourceLanguage: string | undefined;
   let hasAnyTranslation = false;
+  let hasAnySameLanguage = false;
   let hasAnySameText = false;
   let pendingChunks = translatableChunks;
   let lastFailureStatus: TranslationAttemptResult['status'] = 'failed';
@@ -163,11 +164,10 @@ async function translateWithProviderChain(
       sourceLanguage = sourceLanguage ?? chunkResult.sourceLanguage;
 
       if (chunkResult.status === 'same-language') {
-        return {
-          status: 'same-language',
-          lines,
-          sourceLanguage: chunkResult.sourceLanguage,
-        };
+        // Provider language detection can be noisy on mixed lyric chunks. Keep
+        // the current chunk monolingual, but continue translating the rest.
+        hasAnySameLanguage = true;
+        continue;
       }
 
       if (chunkResult.status === 'same-text') {
@@ -198,6 +198,14 @@ async function translateWithProviderChain(
     return {
       status: 'translated',
       lines: nextLines,
+      sourceLanguage,
+    };
+  }
+
+  if (hasAnySameLanguage && pendingChunks.length === 0) {
+    return {
+      status: 'same-language',
+      lines,
       sourceLanguage,
     };
   }
@@ -243,10 +251,6 @@ async function translateGoogleLineChunk(
       throw new Error('Unexpected Google Translate source language');
     }
 
-    if (sourceCode === targetCode) {
-      return { status: 'same-language', lines, sourceLanguage };
-    }
-
     const translatedText = readGoogleTranslatedText(data);
     const translatedLines = translatedText.split(googleLineSeparator);
 
@@ -261,7 +265,7 @@ async function translateGoogleLineChunk(
 
     if (!hasAnyTranslation) {
       return {
-        status: 'same-text',
+        status: sourceCode === targetCode ? 'same-language' : 'same-text',
         lines,
         sourceLanguage,
       };
@@ -321,10 +325,6 @@ function createBingWebProvider(config: BingWebProviderConfig): TranslationProvid
         );
       }
 
-      if (sourceCode === targetCode) {
-        return { status: 'same-language', lines, sourceLanguage };
-      }
-
       const translatedText = readMicrosoftTranslatedText(data);
       const translatedLines = translatedText.split(googleLineSeparator);
 
@@ -339,7 +339,7 @@ function createBingWebProvider(config: BingWebProviderConfig): TranslationProvid
 
       if (!hasAnyTranslation) {
         return {
-          status: 'same-text',
+          status: sourceCode === targetCode ? 'same-language' : 'same-text',
           lines,
           sourceLanguage,
         };
