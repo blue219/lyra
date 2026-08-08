@@ -1,7 +1,17 @@
-import type { CSSProperties, ReactNode } from 'react';
+import {
+  useEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+  type ReactNode,
+} from 'react';
 
 import { AuroraBackground } from './aurora-background';
 import type { OverlayPhase } from '@/src/application/lyrics-flow';
+import {
+  fixedCoverPalette,
+  type CoverPalette,
+} from '@/src/domain/cover-palette';
 
 export const loadingSkeletonGroupCount = 5;
 export const lyricsContentMaxWidth = '1024px';
@@ -13,6 +23,7 @@ export const skeletonTranslationWidth = '33.3333%';
 
 const replacementViewportHeight = 'calc(100vh - 96px)';
 const replacementViewportNegativeMargin = 'calc(-1 * (100vh - 96px))';
+const coverPaletteTransitionMs = 350;
 const skeletonHighlightGradient =
   'linear-gradient(90deg, rgba(255, 255, 255, 0) 0%, rgba(255, 255, 255, 0.08) 18%, rgba(255, 255, 255, 0.42) 50%, rgba(255, 255, 255, 0.08) 82%, rgba(255, 255, 255, 0) 100%)';
 const skeletonAnimationStyles = `
@@ -158,16 +169,20 @@ export function StatusLabel({
 export function ReplacementLyricsFrame({
   children,
   contentGap,
+  coverPalette = fixedCoverPalette,
   dynamicBackground,
   padding,
   selectable = false,
 }: {
   children: ReactNode;
   contentGap: string;
+  coverPalette?: CoverPalette;
   dynamicBackground: boolean;
   padding: string;
   selectable?: boolean;
 }) {
+  const displayedCoverPalette = useInterpolatedCoverPalette(coverPalette);
+
   return (
     <section
       className="lyra-replacement-lyrics"
@@ -192,7 +207,10 @@ export function ReplacementLyricsFrame({
       }}
     >
       <style>{skeletonAnimationStyles}</style>
-      <AuroraLayer dynamicBackground={dynamicBackground} />
+      <AuroraLayer
+        colorStops={displayedCoverPalette}
+        dynamicBackground={dynamicBackground}
+      />
       <div
         data-lyra-aurora-shell="true"
         style={{
@@ -223,7 +241,14 @@ export function ReplacementLyricsFrame({
   );
 }
 
-function AuroraLayer({ dynamicBackground }: { dynamicBackground: boolean }) {
+function AuroraLayer({
+  colorStops,
+  dynamicBackground,
+}: {
+  colorStops: CoverPalette;
+  dynamicBackground: boolean;
+}) {
+  const [light, middle, dark] = colorStops;
   return (
     <div
       aria-hidden="true"
@@ -242,16 +267,14 @@ function AuroraLayer({ dynamicBackground }: { dynamicBackground: boolean }) {
       <div
         data-lyra-aurora-static="true"
         style={{
-          background:
-            'radial-gradient(circle at 18% 12%, rgba(106, 255, 173, 0.2) 0%, rgba(106, 255, 173, 0.06) 18%, rgba(106, 255, 173, 0) 42%), radial-gradient(circle at 76% 10%, rgba(96, 58, 255, 0.24) 0%, rgba(96, 58, 255, 0.08) 24%, rgba(96, 58, 255, 0) 52%), linear-gradient(180deg, rgba(17, 12, 24, 0.94) 0%, rgba(14, 16, 22, 0.97) 42%, rgba(13, 12, 19, 1) 100%)',
+          background: `radial-gradient(circle at 18% 12%, ${toRgba(light, 0.2)} 0%, ${toRgba(light, 0.06)} 18%, ${toRgba(light, 0)} 42%), radial-gradient(circle at 76% 10%, ${toRgba(dark, 0.24)} 0%, ${toRgba(dark, 0.08)} 24%, ${toRgba(dark, 0)} 52%), linear-gradient(180deg, rgba(17, 12, 24, 0.94) 0%, rgba(14, 16, 22, 0.97) 42%, rgba(13, 12, 19, 1) 100%)`,
           inset: 0,
           position: 'absolute',
         }}
       />
       <div
         style={{
-          background:
-            'radial-gradient(circle at 18% 26%, rgba(106, 255, 173, 0.09) 0%, rgba(106, 255, 173, 0.03) 20%, rgba(106, 255, 173, 0) 48%), radial-gradient(circle at 78% 34%, rgba(96, 58, 255, 0.12) 0%, rgba(96, 58, 255, 0.04) 22%, rgba(96, 58, 255, 0) 52%), radial-gradient(circle at 50% 72%, rgba(230, 241, 255, 0.05) 0%, rgba(230, 241, 255, 0.02) 24%, rgba(230, 241, 255, 0) 52%)',
+          background: `radial-gradient(circle at 18% 26%, ${toRgba(light, 0.09)} 0%, ${toRgba(light, 0.03)} 20%, ${toRgba(light, 0)} 48%), radial-gradient(circle at 78% 34%, ${toRgba(middle, 0.12)} 0%, ${toRgba(middle, 0.04)} 22%, ${toRgba(middle, 0)} 52%), radial-gradient(circle at 50% 72%, rgba(230, 241, 255, 0.05) 0%, rgba(230, 241, 255, 0.02) 24%, rgba(230, 241, 255, 0) 52%)`,
           inset: 0,
           position: 'absolute',
         }}
@@ -260,7 +283,7 @@ function AuroraLayer({ dynamicBackground }: { dynamicBackground: boolean }) {
         <AuroraBackground
           amplitude={0.65}
           blend={0.62}
-          colorStops={['#7cff67', '#b497cf', '#5227ff']}
+          colorStops={colorStops}
           enabled={dynamicBackground}
           speed={0.9}
           style={{ opacity: 0.62 }}
@@ -268,4 +291,63 @@ function AuroraLayer({ dynamicBackground }: { dynamicBackground: boolean }) {
       ) : null}
     </div>
   );
+}
+
+function useInterpolatedCoverPalette(target: CoverPalette): CoverPalette {
+  const [palette, setPalette] = useState<CoverPalette>(target);
+  const paletteRef = useRef(palette);
+
+  useEffect(() => {
+    const initial = paletteRef.current;
+    if (initial.every((color, index) => color === target[index])) return;
+
+    const startTime = performance.now();
+    let frame = 0;
+    const update = (time: number) => {
+      const progress = Math.min(
+        (time - startTime) / coverPaletteTransitionMs,
+        1,
+      );
+      const next = interpolateCoverPalette(initial, target, progress);
+      paletteRef.current = next;
+      setPalette(next);
+      if (progress < 1) frame = requestAnimationFrame(update);
+    };
+
+    frame = requestAnimationFrame(update);
+    return () => cancelAnimationFrame(frame);
+  }, [target]);
+
+  return palette;
+}
+
+export function interpolateCoverPalette(
+  from: CoverPalette,
+  to: CoverPalette,
+  progress: number,
+): CoverPalette {
+  return from.map((color, index) => {
+    const source = parseHex(color);
+    const destination = parseHex(to[index]!);
+    return `#${source
+      .map((channel, channelIndex) =>
+        Math.round(channel + (destination[channelIndex]! - channel) * progress)
+          .toString(16)
+          .padStart(2, '0'),
+      )
+      .join('')}`;
+  }) as CoverPalette;
+}
+
+function toRgba(color: string, alpha: number): string {
+  const [red, green, blue] = parseHex(color);
+  return `rgba(${red}, ${green}, ${blue}, ${alpha})`;
+}
+
+function parseHex(color: string): [number, number, number] {
+  return [
+    Number.parseInt(color.slice(1, 3), 16),
+    Number.parseInt(color.slice(3, 5), 16),
+    Number.parseInt(color.slice(5, 7), 16),
+  ];
 }

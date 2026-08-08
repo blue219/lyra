@@ -21,6 +21,7 @@ export interface OverlayControllerState {
   activeLineIndex: number;
   spotifyLyricsLines: LyricLine[];
   currentTrack: TrackIdentity | null;
+  coverImageUrl?: string;
   hasUnsyncedSpotifyLyrics: boolean;
   lyricsContainer: HTMLElement | null;
   requestKey: string;
@@ -63,6 +64,7 @@ export function createOverlayController(options: OverlayControllerOptions) {
     activeLineIndex: -1,
     spotifyLyricsLines: [],
     currentTrack: null,
+    coverImageUrl: undefined,
     hasUnsyncedSpotifyLyrics: false,
     lyricsContainer: null,
     requestKey: 'pending-settings',
@@ -108,6 +110,7 @@ export function createOverlayController(options: OverlayControllerOptions) {
       activeLineIndex,
       spotifyLyricsLines: snapshot.lyricsLines,
       currentTrack: snapshot.track,
+      coverImageUrl: snapshot.coverImageUrl,
       hasUnsyncedSpotifyLyrics: snapshot.hasUnsyncedLyrics,
       lyricsContainer: snapshot.lyricsContainer,
       requestKey,
@@ -275,6 +278,7 @@ function isSemanticStateEqual(
     left.requestKey === right.requestKey &&
     left.lyricsContainer === right.lyricsContainer &&
     left.hasUnsyncedSpotifyLyrics === right.hasUnsyncedSpotifyLyrics &&
+    left.coverImageUrl === right.coverImageUrl &&
     createLyricsKey(left.spotifyLyricsLines) ===
       createLyricsKey(right.spotifyLyricsLines) &&
     lyricsResultKey(left.lyrics) === lyricsResultKey(right.lyrics)

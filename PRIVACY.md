@@ -1,6 +1,6 @@
 # Privacy Policy for Lyra
 
-Last updated: July 3, 2026
+Last updated: August 9, 2026
 
 Lyra is a browser extension for Spotify Web Player that displays bilingual synced
 lyrics. This policy explains what data Lyra processes and how that data is used.
@@ -19,6 +19,7 @@ Lyra may process the following data only to provide its lyrics features:
 - Current Spotify track metadata, such as title, artist, album, and duration.
 - Visible Spotify lyric text and active lyric line state.
 - Playback position used for lyric highlighting and LRCLIB timestamp seeking.
+- The current Now Playing cover image URL and a short-lived, derived color palette.
 - User settings, such as target language, font size, dynamic background
   preference, and lyrics cache controls.
 - Cached lyrics results and cache metadata stored locally in the browser.
@@ -32,6 +33,10 @@ core functionality:
   lyrics when Spotify lyrics are missing or unsynced.
 - Translation provider: lyric text may be sent to Google Translate to generate
   translations in the selected target language.
+- Spotify image CDN: when a supported Now Playing cover is visible, Lyra fetches
+  the cover image from `i.scdn.co` without credentials solely to derive a
+  background palette. The image and palette are held only in memory for the
+  current extension Service Worker lifetime.
 
 Lyra does not send Spotify account credentials, browser cookies, passwords, or
 payment information to these services.
@@ -68,6 +73,8 @@ Lyra requests only the permissions needed for its lyrics features:
   lyrics and render the replacement lyrics UI.
 - `https://lrclib.net/*`: fetches fallback synced lyrics.
 - `https://translate.googleapis.com/*`: translates lyric text.
+- `https://i.scdn.co/*`: retrieves the visible Spotify cover image without
+  credentials to derive the lyrics background palette.
 
 ## Contact
 

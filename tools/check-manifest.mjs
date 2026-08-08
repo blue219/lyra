@@ -16,7 +16,11 @@ assertArray(
 );
 assertArray(
   manifest.host_permissions,
-  ['https://lrclib.net/*', 'https://translate.googleapis.com/*'],
+  [
+    'https://i.scdn.co/*',
+    'https://lrclib.net/*',
+    'https://translate.googleapis.com/*',
+  ],
   'host permissions',
 );
 

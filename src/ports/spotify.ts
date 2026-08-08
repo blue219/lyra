@@ -4,6 +4,7 @@ export interface SpotifySnapshot {
   activeLineIndex: number;
   lyricsLines: LyricLine[];
   track: TrackIdentity | null;
+  coverImageUrl?: string;
   hasUnsyncedLyrics: boolean;
   lyricsContainer: HTMLElement | null;
 }

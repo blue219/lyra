@@ -6,6 +6,7 @@ import { createRoot } from 'react-dom/client';
 import { describe, expect, test } from 'vitest';
 
 import { ReplacementLyrics } from './replacement-lyrics';
+import { interpolateCoverPalette } from './replacement-lyrics-frame';
 import type { LyricsResult } from '@/src/domain/model';
 
 const bilingualLyrics: LyricsResult = {
@@ -123,8 +124,8 @@ describe('ReplacementLyrics', () => {
     expect(html).toContain(
       'padding:64px clamp(20px, 4vw, 48px);position:relative;width:100%;z-index:1',
     );
-    expect(html).toContain('rgba(96, 58, 255, 0.24)');
-    expect(html).toContain('rgba(106, 255, 173, 0.2)');
+    expect(html).toContain('rgba(82, 39, 255, 0.24)');
+    expect(html).toContain('rgba(124, 255, 103, 0.2)');
     expect(html).toContain('data-lyra-aurora-static="true"');
     expect(html).toContain('data-lyra-aurora-canvas="true"');
     expect(html).toContain(
@@ -148,6 +149,24 @@ describe('ReplacementLyrics', () => {
     expect(html).toContain('data-lyra-aurora-static="true"');
     expect(html).not.toContain('data-lyra-aurora-canvas="true"');
     expect(html).not.toContain('data-lyra-aurora-drift="true"');
+  });
+
+  test('uses cover colors for the static layer even when Aurora movement is disabled', () => {
+    const html = renderToStaticMarkup(
+      <ReplacementLyrics
+        activeLineIndex={0}
+        coverPalette={['#d6436b', '#a41e42', '#68132a']}
+        dynamicBackground={false}
+        fontSize="md"
+        phase="ready"
+        lyrics={bilingualLyrics}
+        targetLanguage="zh-CN"
+      />,
+    );
+
+    expect(html).toContain('rgba(214, 67, 107, 0.2)');
+    expect(html).toContain('rgba(104, 19, 42, 0.24)');
+    expect(html).not.toContain('data-lyra-aurora-canvas="true"');
   });
 
   test('renders lyric rows as clickable controls with a pointer cursor', () => {
@@ -316,5 +335,17 @@ describe('ReplacementLyrics', () => {
 
     expect(html).toContain('No lyrics available');
     expect(html).not.toContain('No synced lyrics available');
+  });
+});
+
+describe('interpolateCoverPalette', () => {
+  test('moves all Aurora color stops smoothly between cover palettes', () => {
+    expect(
+      interpolateCoverPalette(
+        ['#000000', '#000000', '#000000'],
+        ['#ffffff', '#804020', '#102030'],
+        0.5,
+      ),
+    ).toEqual(['#808080', '#402010', '#081018']);
   });
 });

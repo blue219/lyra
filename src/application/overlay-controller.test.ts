@@ -67,6 +67,43 @@ describe('overlay controller', () => {
     vi.useRealTimers();
   });
 
+  test('publishes a changed cover URL without reloading unchanged lyrics', async () => {
+    vi.useFakeTimers();
+    const spotify = createSpotify({
+      activeLineIndex: 0,
+      lyricsLines: [{ timeMs: 0, original: 'Hello' }],
+      track: { title: 'Song', artists: ['Artist'] },
+      hasUnsyncedLyrics: false,
+      lyricsContainer: null,
+    });
+    const translateLyrics = vi.fn().mockResolvedValue({
+      status: 'available',
+      source: 'spotify',
+      lines: [{ timeMs: 0, original: 'Hello' }],
+    });
+    const controller = createOverlayController({
+      spotify,
+      lyricsClient: { fetchLyrics: vi.fn(), translateLyrics },
+    });
+
+    controller.setTargetLanguage('fr-FR');
+    controller.start();
+    await vi.runAllTicks();
+    spotify.snapshot = {
+      ...spotify.snapshot,
+      coverImageUrl: 'https://i.scdn.co/image/next-cover',
+    };
+    spotify.emit();
+    await vi.advanceTimersByTimeAsync(100);
+
+    expect(controller.getState().coverImageUrl).toBe(
+      'https://i.scdn.co/image/next-cover',
+    );
+    expect(translateLyrics).toHaveBeenCalledOnce();
+    controller.stop();
+    vi.useRealTimers();
+  });
+
   test('polls playback only for visible LRCLIB lyrics and tears down resources', async () => {
     let visible = true;
     let position: number | null = null;

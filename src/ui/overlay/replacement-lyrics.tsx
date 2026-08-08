@@ -1,5 +1,6 @@
 import { getLineTranslationForLanguage } from '@/src/domain/lyrics';
 import type { LyricsResult, OverlaySettings } from '@/src/domain/model';
+import type { CoverPalette } from '@/src/domain/cover-palette';
 import type { OverlayPhase } from '@/src/application/lyrics-flow';
 import {
   defaultLyricsPadding,
@@ -16,6 +17,7 @@ import {
 
 interface ReplacementLyricsProps {
   activeLineIndex: number;
+  coverPalette?: CoverPalette;
   dynamicBackground: boolean;
   fontSize: OverlaySettings['fontSize'];
   phase: OverlayPhase;
@@ -59,6 +61,7 @@ function getStatusLabel(phase: OverlayPhase, lyrics: LyricsResult): string {
 
 export function ReplacementLyrics({
   activeLineIndex,
+  coverPalette,
   dynamicBackground,
   fontSize,
   phase,
@@ -72,6 +75,7 @@ export function ReplacementLyrics({
     return (
       <ReplacementLyricsFrame
         contentGap="16px"
+        coverPalette={coverPalette}
         dynamicBackground={dynamicBackground}
         padding={loadingLyricsPadding}
       >
@@ -125,6 +129,7 @@ export function ReplacementLyrics({
     return (
       <ReplacementLyricsFrame
         contentGap="16px"
+        coverPalette={coverPalette}
         dynamicBackground={dynamicBackground}
         padding={defaultLyricsPadding}
       >
@@ -136,6 +141,7 @@ export function ReplacementLyrics({
   return (
     <ReplacementLyricsFrame
       contentGap="32px"
+      coverPalette={coverPalette}
       dynamicBackground={dynamicBackground}
       padding={defaultLyricsPadding}
       selectable

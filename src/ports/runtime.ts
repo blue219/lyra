@@ -5,6 +5,7 @@ import type {
   LyricsSource,
   TrackIdentity,
 } from '@/src/domain/model';
+import type { CoverPalette } from '@/src/domain/cover-palette';
 
 export interface FetchLyricsRequest {
   type: 'lyra:fetchLyrics';
@@ -27,6 +28,11 @@ export interface ClearLyricsCacheRequest {
   type: 'lyra:clearLyricsCache';
 }
 
+export interface ResolveCoverPaletteRequest {
+  type: 'lyra:resolveCoverPalette';
+  coverImageUrl: string;
+}
+
 export interface RuntimeRequestMap {
   'lyra:fetchLyrics': {
     request: FetchLyricsRequest;
@@ -43,6 +49,10 @@ export interface RuntimeRequestMap {
   'lyra:clearLyricsCache': {
     request: ClearLyricsCacheRequest;
     response: { ok: true };
+  };
+  'lyra:resolveCoverPalette': {
+    request: ResolveCoverPaletteRequest;
+    response: CoverPalette | null;
   };
 }
 
@@ -103,6 +113,9 @@ export function createRuntimeHandlerRegistry(handlers: RuntimeHandlers) {
       case 'lyra:clearLyricsCache':
         response = handlers['lyra:clearLyricsCache'](value);
         break;
+      case 'lyra:resolveCoverPalette':
+        response = handlers['lyra:resolveCoverPalette'](value);
+        break;
     }
 
     if (!sendResponse) {
@@ -143,6 +156,11 @@ export function isRuntimeRequest(value: unknown): value is RuntimeRequest {
     case 'lyra:getLyricsCacheSummary':
     case 'lyra:clearLyricsCache':
       return hasOnlyKeys(value, ['type']);
+    case 'lyra:resolveCoverPalette':
+      return (
+        hasOnlyKeys(value, ['type', 'coverImageUrl']) &&
+        isNonEmptyString(value.coverImageUrl)
+      );
     default:
       return false;
   }
@@ -171,6 +189,8 @@ function isRuntimeResponse(type: RuntimeRequestType, value: unknown): boolean {
       return (
         isPlainRecord(value) && hasOnlyKeys(value, ['ok']) && value.ok === true
       );
+    case 'lyra:resolveCoverPalette':
+      return value === null || isCoverPalette(value);
   }
 }
 
@@ -206,6 +226,16 @@ function isLyricLine(value: unknown): value is LyricLine {
     (value.translated === undefined || typeof value.translated === 'string') &&
     (value.translatedLanguage === undefined ||
       isNonEmptyString(value.translatedLanguage))
+  );
+}
+
+function isCoverPalette(value: unknown): value is CoverPalette {
+  return (
+    Array.isArray(value) &&
+    value.length === 3 &&
+    value.every(
+      (color) => typeof color === 'string' && /^#[0-9a-f]{6}$/iu.test(color),
+    )
   );
 }
 

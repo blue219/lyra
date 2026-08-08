@@ -26,6 +26,7 @@ export default defineConfig({
     action: actionManifest as typeof actionManifest,
     permissions: ['storage', 'declarativeContent'],
     host_permissions: [
+      'https://i.scdn.co/*',
       'https://lrclib.net/*',
       'https://translate.googleapis.com/*',
     ],

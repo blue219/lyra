@@ -81,9 +81,14 @@ Spotify Web Player:
 5. Missing or unsynced lyrics accept only an accurate LRCLIB match.
 6. Changing track cancels stale work and displays only the new track.
 7. Translation degradation keeps originals visible with an inline reason.
-8. Target language, font size, and dynamic background survive reload.
+8. Target language, font size, and the Aurora motion preference survive reload.
 9. A forced setting/cache failure shows a recoverable inline message.
 10. Cache UI shows unique songs and entries out of 200; clear removes both.
+11. On a song with an `i.scdn.co` cover, the lyrics background changes to a
+    derived palette once per cover URL; quick track changes do not apply a stale
+    palette, and unsupported or low-color covers fall back silently.
+12. Disabling dynamic background or enabling the operating system's reduced-motion
+    preference stops Aurora motion while retaining the current cover palette.
 
 Manual smoke requires an authenticated Spotify session and therefore cannot run
 inside CI.

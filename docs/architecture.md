@@ -14,7 +14,8 @@ domain <- ports <- application <- adapters <- ui
                                   entrypoints compose dependencies
 ```
 
-- `domain` contains Track, Lyrics, Translation, Cache, settings, and pure rules.
+- `domain` contains Track, Lyrics, Translation, Cache, cover palette, settings,
+  and pure rules.
 - `ports` defines the Spotify, LRCLIB, translation, storage, runtime messaging,
   and clock seams. Production adapters and test adapters implement these ports.
 - `application` owns lyrics selection, translation orchestration, V2 cache policy,
@@ -58,6 +59,7 @@ Supported requests are:
 | `lyra:translateLyrics`       | Translate Spotify-provided lines.                                     |
 | `lyra:getLyricsCacheSummary` | Read V2 song and entry counts.                                        |
 | `lyra:clearLyricsCache`      | Cancel active work, increment cache generation, and clear V2 entries. |
+| `lyra:resolveCoverPalette`   | Derive a safe Aurora palette from an allowed Spotify cover URL.       |
 
 The removed combined/original-only request and direct content-script HTTP
 fallback are not supported.
@@ -67,6 +69,8 @@ fallback are not supported.
 The overlay controller owns one semantic state stream. It uses a narrowed,
 throttled MutationObserver that watches Spotify's main content and player areas.
 Spotify's native active-line DOM mutation drives Spotify-sourced highlighting.
+The same snapshot carries the current Now Playing cover URL. A cover URL change
+is semantic state even when the lyrics selection remains unchanged.
 Only LRCLIB-sourced synced lyrics read playback position, approximately every
 250 ms. Playback polling pauses while the document is hidden. The controller
 publishes only when the semantic state changes.
@@ -88,8 +92,9 @@ to `https://open.spotify.com/*` through `web_accessible_resources`.
 
 The ESM UI fetches its generated CSS by extension URL and injects it into the
 ShadowRoot. OGL remains a dynamic import and is loaded only when the dynamic
-background setting is enabled. Normal application `import()` is not used as a
-content-script splitting mechanism.
+background setting is enabled. Cover colors always update the static background;
+the setting controls Aurora motion only. Normal application `import()` is not
+used as a content-script splitting mechanism.
 
 ## External adapters
 
@@ -101,6 +106,11 @@ content-script splitting mechanism.
   Track-only search uses the same acceptance rules.
 - Translation: provider requests use `credentials: "omit"`. Providers that cannot
   work without cookies are removed with their host permission.
+- Cover palette: the content script reads only the visible Now Playing image URL.
+  The background validates an exact `https://i.scdn.co/*` URL, fetches it without
+  credentials, samples it at 32 by 32 pixels, and caches the derived palette in
+  Service Worker memory. Failed, unsupported, low-color, or stale requests keep
+  the fixed palette and never affect lyrics loading.
 
 ## Storage
 

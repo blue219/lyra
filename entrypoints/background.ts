@@ -6,6 +6,7 @@ import { translateGoogleLineChunk } from '@/src/adapters/http/google-provider';
 import { getExtensionApi } from '@/src/adapters/chrome/extension-api';
 import { createRuntimeHandlerRegistry } from '@/src/ports/runtime';
 import { maxLyricsCacheEntries } from '@/src/domain/cache';
+import { createCoverPaletteResolver } from '@/src/adapters/http/cover-palette';
 
 const translateLyrics = createTranslationOrchestrator([
   translateGoogleLineChunk,
@@ -19,6 +20,7 @@ const lyricsCacheController = createLyricsCacheController({
   fetchLyrics: fetchLyricsFromLrclib,
   translateLyrics,
 });
+const coverPaletteResolver = createCoverPaletteResolver();
 
 const handleRuntimeMessage = createRuntimeHandlerRegistry({
   'lyra:fetchLyrics': ({ track, targetLanguage }) =>
@@ -30,6 +32,8 @@ const handleRuntimeMessage = createRuntimeHandlerRegistry({
     await lyricsCacheController.clearCache();
     return { ok: true };
   },
+  'lyra:resolveCoverPalette': ({ coverImageUrl }) =>
+    coverPaletteResolver.resolve(coverImageUrl),
 });
 
 export default defineBackground({

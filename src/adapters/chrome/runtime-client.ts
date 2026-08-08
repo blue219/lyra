@@ -2,9 +2,11 @@ import { getExtensionApi } from './extension-api';
 import {
   createRuntimeClient,
   type FetchLyricsRequest,
+  type ResolveCoverPaletteRequest,
   type TranslateLyricsRequest,
 } from '@/src/ports/runtime';
 import type { CacheSummary, LyricsResult } from '@/src/domain/model';
+import type { CoverPalette } from '@/src/domain/cover-palette';
 
 type ExtensionApi = ReturnType<typeof getExtensionApi>;
 
@@ -32,6 +34,15 @@ export function requestTranslatedLyrics(
 ): Promise<LyricsResult> {
   return getClient().send<'lyra:translateLyrics'>({
     type: 'lyra:translateLyrics',
+    ...request,
+  });
+}
+
+export function requestCoverPalette(
+  request: Omit<ResolveCoverPaletteRequest, 'type'>,
+): Promise<CoverPalette | null> {
+  return getClient().send<'lyra:resolveCoverPalette'>({
+    type: 'lyra:resolveCoverPalette',
     ...request,
   });
 }

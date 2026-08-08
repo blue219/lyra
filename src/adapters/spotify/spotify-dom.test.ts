@@ -9,6 +9,7 @@ import {
   markNativeSpotifyLyricsHidden,
   clickSpotifyLyricLine,
   readCurrentTrackIdentity,
+  readCurrentCoverImageUrl,
   readSpotifyLyricsPageContainer,
   readPlaybackPositionMs,
   readSpotifyLyricsContainer,
@@ -62,6 +63,28 @@ describe('readCurrentTrackIdentity', () => {
       album: 'my everything tenth anniversary edition',
       durationSeconds: undefined,
     });
+  });
+});
+
+describe('readCurrentCoverImageUrl', () => {
+  test('reads the visible cover image from the current now-playing region', () => {
+    document.body.innerHTML = `
+      <img src="https://i.scdn.co/image/sidebar-cover" />
+      <footer aria-label="Now playing: Song by Artist">
+        <img src="https://i.scdn.co/image/current-cover" />
+      </footer>
+    `;
+
+    expect(readCurrentCoverImageUrl(document)).toBe(
+      'https://i.scdn.co/image/current-cover',
+    );
+  });
+
+  test('does not use unrelated page artwork when no current cover exists', () => {
+    document.body.innerHTML =
+      '<main><img src="https://i.scdn.co/image/playlist-cover" /></main>';
+
+    expect(readCurrentCoverImageUrl(document)).toBeUndefined();
   });
 });
 

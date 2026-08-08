@@ -11,9 +11,14 @@ import {
   seekSpotifyPlaybackToMs,
 } from '@/src/adapters/spotify/spotify-dom';
 import {
+  requestCoverPalette,
   requestLyrics,
   requestTranslatedLyrics,
 } from '@/src/adapters/chrome/runtime-client';
+import {
+  fixedCoverPalette,
+  type CoverPalette,
+} from '@/src/domain/cover-palette';
 import { createOverlayController } from '@/src/application/overlay-controller';
 import {
   getInitialSelectedLineState,
@@ -66,6 +71,8 @@ export function ContentApp() {
   );
   const [selectedLineState, setSelectedLineState] =
     useState<SelectedLineState | null>(null);
+  const [coverPalette, setCoverPalette] =
+    useState<CoverPalette>(fixedCoverPalette);
   const previousSettingsOpenRef = useRef(false);
   const {
     settings,
@@ -89,6 +96,7 @@ export function ContentApp() {
     activeLineIndex: syncedActiveLineIndex,
     spotifyLyricsLines,
     currentTrack,
+    coverImageUrl,
     playbackPositionMs,
     lyricsContainer,
   } = controllerState;
@@ -112,6 +120,29 @@ export function ContentApp() {
       lyricsContainer ? ensureReplacementHost(document, lyricsContainer) : null,
     );
   }, [lyricsContainer]);
+
+  useEffect(() => {
+    let isCurrent = true;
+
+    if (!coverImageUrl) {
+      setCoverPalette(fixedCoverPalette);
+      return () => {
+        isCurrent = false;
+      };
+    }
+
+    void requestCoverPalette({ coverImageUrl })
+      .then((nextPalette) => {
+        if (isCurrent) setCoverPalette(nextPalette ?? fixedCoverPalette);
+      })
+      .catch(() => {
+        if (isCurrent) setCoverPalette(fixedCoverPalette);
+      });
+
+    return () => {
+      isCurrent = false;
+    };
+  }, [coverImageUrl]);
 
   useEffect(() => {
     const shouldRefresh = shouldRefreshCacheSummaryOnOpen({
@@ -218,6 +249,7 @@ export function ContentApp() {
         ? createPortal(
             <ReplacementLyrics
               activeLineIndex={activeLineIndex}
+              coverPalette={coverPalette}
               dynamicBackground={settings.dynamicBackground}
               fontSize={settings.fontSize}
               phase={phase}

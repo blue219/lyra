@@ -30,6 +30,18 @@ describe('runtime protocol', () => {
     expect(
       isRuntimeRequest({ type: 'lyra:clearLyricsCache', unexpected: true }),
     ).toBe(false);
+    expect(
+      isRuntimeRequest({
+        type: 'lyra:resolveCoverPalette',
+        coverImageUrl: 'https://i.scdn.co/image/cover',
+      }),
+    ).toBe(true);
+    expect(
+      isRuntimeRequest({
+        type: 'lyra:resolveCoverPalette',
+        coverImageUrl: '',
+      }),
+    ).toBe(false);
   });
 
   test('typed client rejects malformed responses', async () => {
@@ -54,6 +66,7 @@ describe('runtime protocol', () => {
       'lyra:translateLyrics': vi.fn(),
       'lyra:getLyricsCacheSummary': vi.fn(),
       'lyra:clearLyricsCache': vi.fn(),
+      'lyra:resolveCoverPalette': vi.fn().mockResolvedValue(null),
     });
 
     expect(registry({ type: 'lyra:fetchLyrics', track: {} })).toBeUndefined();
@@ -76,6 +89,7 @@ describe('runtime protocol', () => {
       'lyra:translateLyrics': vi.fn(),
       'lyra:getLyricsCacheSummary': vi.fn(),
       'lyra:clearLyricsCache': vi.fn(),
+      'lyra:resolveCoverPalette': vi.fn().mockResolvedValue(null),
     });
     expect(
       registry({ type: 'lyra:fetchLyrics', track }, {}, sendResponse),
@@ -93,6 +107,7 @@ describe('runtime protocol', () => {
       'lyra:translateLyrics': vi.fn(),
       'lyra:getLyricsCacheSummary': vi.fn(),
       'lyra:clearLyricsCache': vi.fn(),
+      'lyra:resolveCoverPalette': vi.fn().mockResolvedValue(null),
     });
     expect(
       registry({ type: 'lyra:fetchLyrics', track }, {}, sendResponse),
@@ -108,5 +123,18 @@ describe('runtime protocol', () => {
     await expect(
       client.send<'lyra:fetchLyrics'>({ type: 'lyra:fetchLyrics', track }),
     ).rejects.toThrow('failed');
+  });
+
+  test('accepts a cover palette or null response', async () => {
+    const client = createRuntimeClient({
+      sendMessage: vi.fn().mockResolvedValue(['#d6436b', '#a41e42', '#68132a']),
+    });
+
+    await expect(
+      client.send<'lyra:resolveCoverPalette'>({
+        type: 'lyra:resolveCoverPalette',
+        coverImageUrl: 'https://i.scdn.co/image/cover',
+      }),
+    ).resolves.toEqual(['#d6436b', '#a41e42', '#68132a']);
   });
 });

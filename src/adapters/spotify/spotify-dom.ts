@@ -50,6 +50,7 @@ export function createSpotifyDomAdapter(
         activeLineIndex: lyrics?.activeLineIndex ?? -1,
         lyricsLines: lyrics?.lines ?? [],
         track: readCurrentTrackIdentity(rootDocument),
+        coverImageUrl: readCurrentCoverImageUrl(rootDocument),
         hasUnsyncedLyrics: hasUnsyncedSpotifyLyricsNotice(rootDocument),
         lyricsContainer: readSpotifyLyricsPageContainer(rootDocument),
       };
@@ -61,7 +62,7 @@ export function createSpotifyDomAdapter(
       const main = rootDocument.querySelector('main') ?? rootDocument.body;
       observer.observe(main, {
         attributes: true,
-        attributeFilter: ['class', 'aria-current'],
+        attributeFilter: ['class', 'aria-current', 'src', 'srcset'],
         childList: true,
         characterData: true,
         subtree: true,
@@ -128,6 +129,24 @@ export function readCurrentTrackIdentity(
     album,
     durationSeconds: readPlaybackDurationSeconds(rootDocument),
   };
+}
+
+export function readCurrentCoverImageUrl(
+  rootDocument: Document = document,
+): string | undefined {
+  for (const selector of trackScopeSelectors) {
+    const scope = Array.from(
+      rootDocument.querySelectorAll<HTMLElement>(selector),
+    ).find(isVisibleElement);
+    const image = Array.from(
+      scope?.querySelectorAll<HTMLImageElement>('img') ?? [],
+    ).find(isVisibleElement);
+    const source = image?.currentSrc || image?.src;
+
+    if (source) return source;
+  }
+
+  return undefined;
 }
 
 export function readSpotifyLyricsSnapshot(
