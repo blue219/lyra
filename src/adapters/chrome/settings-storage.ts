@@ -1,0 +1,81 @@
+import { getExtensionApi } from '@/src/adapters/chrome/extension-api';
+import type { OverlaySettings } from '@/src/domain/model';
+import {
+  defaultOverlaySettings,
+  sanitizeOverlaySettings,
+} from '@/src/domain/settings';
+
+export const overlaySettingsStorageKey = 'overlaySettings';
+
+type ExtensionApi = ReturnType<typeof getExtensionApi>;
+
+export async function loadOverlaySettings(
+  extensionApi: ExtensionApi,
+): Promise<OverlaySettings> {
+  if (!extensionApi?.storage?.local) {
+    return defaultOverlaySettings;
+  }
+
+  try {
+    const storedValue = await extensionApi.storage.local.get(
+      overlaySettingsStorageKey,
+    );
+    return sanitizeOverlaySettings(
+      storedValue[overlaySettingsStorageKey] as
+        Partial<OverlaySettings> | undefined,
+    );
+  } catch {
+    return defaultOverlaySettings;
+  }
+}
+
+export async function saveOverlaySettings(
+  extensionApi: ExtensionApi,
+  settings: OverlaySettings,
+): Promise<void> {
+  if (!extensionApi?.storage?.local) {
+    return;
+  }
+
+  await extensionApi.storage.local.set({
+    [overlaySettingsStorageKey]: sanitizeOverlaySettings(settings),
+  });
+}
+
+export function subscribeOverlaySettings(
+  extensionApi: ExtensionApi,
+  onSettingsChange: (settings: OverlaySettings) => void,
+): () => void {
+  const storageChanged = extensionApi?.storage?.onChanged;
+
+  if (!storageChanged?.addListener || !storageChanged?.removeListener) {
+    return () => undefined;
+  }
+
+  const listener = (
+    changes: Record<string, { newValue?: unknown }>,
+    areaName: string,
+  ): void => {
+    if (areaName !== 'local') {
+      return;
+    }
+
+    const settingsChange = changes[overlaySettingsStorageKey];
+
+    if (!settingsChange) {
+      return;
+    }
+
+    onSettingsChange(
+      sanitizeOverlaySettings(
+        settingsChange.newValue as Partial<OverlaySettings> | undefined,
+      ),
+    );
+  };
+
+  storageChanged.addListener(listener);
+
+  return () => {
+    storageChanged.removeListener(listener);
+  };
+}

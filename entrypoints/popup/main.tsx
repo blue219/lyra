@@ -1,6 +1,6 @@
 import ReactDOM from 'react-dom/client';
 
-import { PopupApp } from '../../src/features/popup/popup-app';
+import { PopupApp } from '@/src/ui/popup/popup-app';
 import './style.css';
 
 const container = document.getElementById('root');

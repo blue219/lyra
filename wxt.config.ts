@@ -1,5 +1,6 @@
 import tailwindcss from '@tailwindcss/vite';
 import { defineConfig } from 'wxt';
+import packageJson from './package.json';
 
 const actionManifest = {
   default_state: 'disabled',
@@ -27,14 +28,12 @@ export default defineConfig({
     host_permissions: [
       'https://lrclib.net/*',
       'https://translate.googleapis.com/*',
-      'https://translator.bing.com/*',
-      'https://www.bing.com/*',
     ],
   },
   vite: () => ({
     plugins: [tailwindcss()],
-    test: {
-      environment: 'node',
+    define: {
+      __LYRA_VERSION__: JSON.stringify(packageJson.version),
     },
   }),
 });

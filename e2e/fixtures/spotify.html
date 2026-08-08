@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <style>
+      body {
+        margin: 0;
+        background: #121212;
+        color: #b3b3b3;
+        font-family: Arial, sans-serif;
+      }
+      main {
+        min-height: 700px;
+        padding: 32px;
+      }
+      [data-testid='lyrics-line'] {
+        display: block;
+        min-height: 40px;
+        font-size: 24px;
+      }
+      footer {
+        position: fixed;
+        inset: auto 0 0;
+        height: 80px;
+        background: #181818;
+      }
+    </style>
+  </head>
+  <body>
+    <main id="main-view">
+      <section aria-label="Lyrics">
+        <div class="active" data-active="true" data-testid="lyrics-line">
+          Hello
+        </div>
+        <div data-testid="lyrics-line">World</div>
+      </section>
+    </main>
+    <footer aria-label="Now playing: Song by Artist">
+      <a href="/track/song">Song</a>
+      <a href="/artist/artist">Artist</a>
+      <span data-testid="playback-position">0:01</span>
+      <span aria-label="Duration">3:00</span>
+    </footer>
+  </body>
+</html>

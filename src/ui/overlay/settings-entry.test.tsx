@@ -1,0 +1,130 @@
+// @vitest-environment jsdom
+
+import { renderToStaticMarkup } from 'react-dom/server';
+import { describe, expect, test } from 'vitest';
+
+import { SettingsEntry, getSettingsEntryStyle } from './settings-entry';
+import type { CacheSummary, OverlaySettings } from '@/src/domain/model';
+
+const settings: OverlaySettings = {
+  targetLanguage: 'zh-CN',
+  fontSize: 'md',
+  dynamicBackground: true,
+};
+
+const cacheSummary: CacheSummary = {
+  songCount: 12,
+  entryCount: 14,
+  maxEntries: 200,
+  sizeBytes: 3_584,
+};
+
+describe('SettingsEntry', () => {
+  test('renders the settings trigger without the popover by default', () => {
+    const html = renderToStaticMarkup(
+      <SettingsEntry
+        anchor={null}
+        cacheSummary={cacheSummary}
+        isOpen={false}
+        isCachePending={false}
+        isClearingCache={false}
+        settings={settings}
+        onClearCache={() => undefined}
+        onOpenChange={() => undefined}
+        onSettingsChange={() => undefined}
+      />,
+    );
+
+    expect(html).toContain('Open Lyra settings');
+    expect(html).not.toContain('Target language');
+  });
+
+  test('renders language, font size, and phase controls when open', () => {
+    const html = renderToStaticMarkup(
+      <SettingsEntry
+        anchor={{ right: 24, top: 48 }}
+        isOpen
+        settings={settings}
+        cacheSummary={cacheSummary}
+        isCachePending={false}
+        isClearingCache={false}
+        onOpenChange={() => undefined}
+        onSettingsChange={() => undefined}
+        onClearCache={() => undefined}
+      />,
+    );
+
+    expect(html).toContain('Target language');
+    expect(html).toContain('Chinese (Simplified)');
+    expect(html).toContain('Chinese (Traditional)');
+    expect(html).toContain('Japanese');
+    expect(html).toContain('Korean');
+    expect(html).toContain('Spanish');
+    expect(html).toContain('Font size');
+    expect(html).toContain('Dynamic background');
+    expect(html).toContain('Cache');
+    expect(html).toContain('Cached songs');
+    expect(html).toContain('>12<');
+    expect(html).toContain('14/200');
+    expect(html).toContain('Cache size');
+    expect(html).toContain('3.5 KB');
+    expect(html).toContain('Clear');
+    expect(html).toContain('bg-[#ff1010]');
+    expect(html).toContain('rounded-[999px] bg-[#ff1010]');
+    expect(html).toContain('aria-checked="true"');
+    expect(html).toContain('right:24px');
+    expect(html).toContain('top:48px');
+    expect(html).toContain('h-10 w-10');
+    expect(html).toContain('rounded-full');
+    expect(html).toContain('<img');
+    expect(html).toContain('w-[min(88vw,274px)]');
+    expect(html).toContain('p-4');
+    expect(html).toContain('rounded-[24px]');
+    expect(html).toContain('tracking-[4px]');
+    expect(html).toContain('rounded-[999px]');
+    expect(html).toContain('bg-[var(--lyra-color-accent)] text-black');
+    expect(html).toContain('data-lyra-settings-notch="true"');
+    expect(html).toContain('text-[10px]');
+    expect(html).toContain('text-[0.82rem]');
+    expect(html).toContain('text-[0.78rem]');
+    expect(html).toContain('p-1');
+    expect(html).toContain('object-contain');
+    expect(html).toContain('top-1 h-5 w-5');
+    expect(html).toContain('right-1');
+    expect(html).toContain('right-[14px]');
+    expect(html).toContain('h-4 w-4');
+    expect(html).toContain('pr-[10px]');
+    expect(html).not.toContain('border-t border-white/10');
+    expect(html).not.toContain(
+      'Falls back to static when motion should be reduced.',
+    );
+  });
+
+  test('renders the dynamic background switch as off when disabled', () => {
+    const html = renderToStaticMarkup(
+      <SettingsEntry
+        anchor={null}
+        isOpen
+        settings={{ ...settings, dynamicBackground: false }}
+        cacheSummary={cacheSummary}
+        isCachePending={false}
+        isClearingCache={false}
+        onOpenChange={() => undefined}
+        onSettingsChange={() => undefined}
+        onClearCache={() => undefined}
+      />,
+    );
+
+    expect(html).toContain('Dynamic background');
+    expect(html).toContain('aria-checked="false"');
+  });
+});
+
+describe('getSettingsEntryStyle', () => {
+  test('uses a fixed fallback position without an anchor', () => {
+    expect(getSettingsEntryStyle(null)).toEqual({
+      right: 16,
+      top: 16,
+    });
+  });
+});

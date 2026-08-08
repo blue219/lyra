@@ -1,0 +1,236 @@
+import { describe, expect, test } from 'vitest';
+
+import {
+  findActiveLyricIndex,
+  getLineTranslationForLanguage,
+  toLyricsResult,
+} from './lyrics';
+import type { LrclibLyricsResponse } from './lyrics';
+
+describe('toLyricsResult', () => {
+  test('maps synced LRCLIB lyrics into original lyric lines only', () => {
+    const payload: LrclibLyricsResponse = {
+      id: 1,
+      trackName: 'Track',
+      artistName: 'Artist',
+      albumName: 'Album',
+      duration: 180,
+      instrumental: false,
+      plainLyrics: 'Hello\nWorld',
+      syncedLyrics: '[00:01.00] Hello / 你好\n[00:03.50] World / 世界',
+    };
+
+    expect(toLyricsResult(payload)).toEqual({
+      status: 'available',
+      source: 'lrclib',
+      lines: [
+        {
+          timeMs: 1_000,
+          original: 'Hello / 你好',
+        },
+        {
+          timeMs: 3_500,
+          original: 'World / 世界',
+        },
+      ],
+    });
+  });
+
+  test('returns a monolingual result when synced lyrics have plain text lines', () => {
+    const payload: LrclibLyricsResponse = {
+      id: 1,
+      trackName: 'Track',
+      artistName: 'Artist',
+      albumName: 'Album',
+      duration: 180,
+      instrumental: false,
+      plainLyrics: 'Hello\nWorld',
+      syncedLyrics: '[00:01.00] Hello\n[00:03.50] World',
+    };
+
+    expect(toLyricsResult(payload)).toEqual({
+      status: 'available',
+      source: 'lrclib',
+      lines: [
+        {
+          timeMs: 1_000,
+          original: 'Hello',
+        },
+        {
+          timeMs: 3_500,
+          original: 'World',
+        },
+      ],
+    });
+  });
+
+  test('parses synced LRCLIB lyrics with millisecond precision timestamps', () => {
+    const payload: LrclibLyricsResponse = {
+      id: 1,
+      trackName: 'Track',
+      artistName: 'Artist',
+      albumName: 'Album',
+      duration: 180,
+      instrumental: false,
+      plainLyrics: 'Hello',
+      syncedLyrics: '[00:01.234] Hello',
+    };
+
+    expect(toLyricsResult(payload)).toEqual({
+      status: 'available',
+      source: 'lrclib',
+      lines: [
+        {
+          timeMs: 1_234,
+          original: 'Hello',
+        },
+      ],
+    });
+  });
+
+  test('strips ASS style override tags from synced lyrics', () => {
+    const payload: LrclibLyricsResponse = {
+      id: 1,
+      trackName: 'Track',
+      artistName: 'Artist',
+      albumName: 'Album',
+      duration: 180,
+      instrumental: false,
+      plainLyrics: 'Talking away',
+      syncedLyrics:
+        '[00:01.00] {\\fn黑体\\fs22\\bord1\\shad0\\3aHBE\\4aH00\\fscx67\\fscy66\\2cHFFFFFF\\3cH808080}Talking away',
+    };
+
+    expect(toLyricsResult(payload).lines).toEqual([
+      {
+        timeMs: 1_000,
+        original: 'Talking away',
+      },
+    ]);
+  });
+
+  test('returns unavailable when LRCLIB has no synced lyrics', () => {
+    const payload: LrclibLyricsResponse = {
+      id: 1,
+      trackName: 'Track',
+      artistName: 'Artist',
+      albumName: 'Album',
+      duration: 180,
+      instrumental: false,
+      plainLyrics: 'Hello\nWorld',
+      syncedLyrics: null,
+    };
+
+    expect(toLyricsResult(payload)).toEqual({
+      status: 'unavailable',
+      reason: 'not-found',
+      lines: [],
+    });
+  });
+
+  test('returns unavailable when all synced rows are malformed', () => {
+    expect(
+      toLyricsResult({
+        id: 1,
+        trackName: 'Track',
+        artistName: 'Artist',
+        duration: 180,
+        instrumental: false,
+        syncedLyrics: 'metadata only',
+      }),
+    ).toEqual({ status: 'unavailable', reason: 'not-found', lines: [] });
+  });
+
+  test('marks instrumental LRCLIB tracks as instrumental unavailable results', () => {
+    const payload: LrclibLyricsResponse = {
+      id: 123,
+      trackName: 'Instrumental',
+      artistName: 'Singer',
+      duration: 180,
+      instrumental: true,
+      syncedLyrics: '[00:01.00] ♪',
+    };
+
+    expect(toLyricsResult(payload)).toEqual({
+      status: 'unavailable',
+      reason: 'instrumental',
+      lines: [],
+    });
+  });
+});
+
+describe('findActiveLyricIndex', () => {
+  const lines = [
+    { timeMs: 1_000, original: 'First' },
+    { timeMs: 3_500, original: 'Second' },
+    { timeMs: 7_250, original: 'Third' },
+  ];
+
+  test('returns the latest started line at the current playback time', () => {
+    expect(findActiveLyricIndex(lines, 5_000)).toBe(1);
+  });
+
+  test('returns -1 before the first line starts', () => {
+    expect(findActiveLyricIndex(lines, 500)).toBe(-1);
+  });
+
+  test('returns the final line after the last timestamp', () => {
+    expect(findActiveLyricIndex(lines, 20_000)).toBe(2);
+  });
+});
+
+describe('getLineTranslationForLanguage', () => {
+  test('returns the translation only when the detected language matches the selected language', () => {
+    expect(
+      getLineTranslationForLanguage(
+        {
+          timeMs: 1_000,
+          original: 'さよなら',
+          translated: 'Goodbye',
+          translatedLanguage: 'en-US',
+        },
+        'en-US',
+      ),
+    ).toBe('Goodbye');
+  });
+
+  test('hides translations for a different target language', () => {
+    expect(
+      getLineTranslationForLanguage(
+        {
+          timeMs: 1_000,
+          original: 'さよなら',
+          translated: 'Goodbye',
+          translatedLanguage: 'en-US',
+        },
+        'zh-CN',
+      ),
+    ).toBeUndefined();
+  });
+
+  test('returns an untagged translation and hides a missing translation', () => {
+    expect(
+      getLineTranslationForLanguage(
+        { timeMs: 0, original: 'Hello', translated: 'Bonjour' },
+        'fr-FR',
+      ),
+    ).toBe('Bonjour');
+    expect(
+      getLineTranslationForLanguage({ timeMs: 0, original: 'Hello' }, 'fr-FR'),
+    ).toBeUndefined();
+  });
+
+  test('hides translations that match the original lyric text', () => {
+    expect(
+      getLineTranslationForLanguage(
+        {
+          timeMs: 1_000,
+          original: '蜻蜓落在露水旁乘凉',
+          translated: '蜻蜓落在露水旁乘凉',
+          translatedLanguage: 'zh-CN',
+        },
+        'zh-CN',
+      ),
+    ).toBeUndefined();
+  });
+});

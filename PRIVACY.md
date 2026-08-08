@@ -30,9 +30,8 @@ core functionality:
 
 - LRCLIB: current track metadata may be sent to LRCLIB to find synced fallback
   lyrics when Spotify lyrics are missing or unsynced.
-- Translation providers: lyric text may be sent to Google Translate, Microsoft
-  Translator, or Bing Translator web endpoints to generate translations in the
-  selected target language.
+- Translation provider: lyric text may be sent to Google Translate to generate
+  translations in the selected target language.
 
 Lyra does not send Spotify account credentials, browser cookies, passwords, or
 payment information to these services.
@@ -69,9 +68,6 @@ Lyra requests only the permissions needed for its lyrics features:
   lyrics and render the replacement lyrics UI.
 - `https://lrclib.net/*`: fetches fallback synced lyrics.
 - `https://translate.googleapis.com/*`: translates lyric text.
-- `https://translator.bing.com/*` and `https://www.bing.com/*`: provide fallback
-  translation options when the primary translation request is unavailable or
-  unusable.
 
 ## Contact
 

@@ -2,23 +2,33 @@
 
 **Lyra** is a browser extension for Spotify Web Player that displays bilingual lyrics.
 
-## Goal 
+## Goal
+
 Build a simple and reliable lyrics extension that helps users view and understand Spotify lyrics in two languages while listening to music.
 
 ---
 
 ## Core Features
+
 - Detect the currently playing Spotify track
 - Fetch synced lyrics from LRCLIB
 - Display two lyrics together
 - Highlight the current lyric line during playback
-- Provide basic display settings such as language, font size, and lyric position
+- Provide basic display settings such as language, font size, and dynamic background
 
 ---
 
 ## Local Startup
 
 Use these commands when you need to start the app locally:
+
+```bash
+npm install
+npm run dev
+```
+
+Load `.output/chrome-mv3-dev` as an unpacked extension in Chromium. The WXT
+development server runs on port `5173`.
 
 ---
 

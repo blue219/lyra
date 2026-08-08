@@ -1,66 +1,50 @@
-import { createToolbarActionGate } from '../src/features/action/action-gate';
-import { createLyricsCacheController } from '../src/features/lyrics/cache-controller';
-import { fetchLyricsFromLrclib } from '../src/features/lyrics/lrclib';
-import {
-  isClearLyricsCacheMessage,
-  isFetchLyricsMessage,
-  isGetLyricsCacheSummaryMessage,
-  isFetchOriginalLyricsMessage,
-  isTranslateLyricsMessage,
-} from '../src/features/lyrics/messages';
-import { translateLyricsResult } from '../src/features/translation/translate';
-import { getExtensionApi } from '../src/shared/extension-api';
+import { createToolbarActionGate } from '@/src/application/action-gate';
+import { createLyricsCacheController } from '@/src/application/cache-controller';
+import { createTranslationOrchestrator } from '@/src/application/translate';
+import { fetchLyricsFromLrclib } from '@/src/adapters/http/lrclib';
+import { translateGoogleLineChunk } from '@/src/adapters/http/google-provider';
+import { getExtensionApi } from '@/src/adapters/chrome/extension-api';
+import { createRuntimeHandlerRegistry } from '@/src/ports/runtime';
+import { maxLyricsCacheEntries } from '@/src/domain/cache';
 
-const CACHE_STORAGE_KEY = 'lyricsCache';
-const MAX_CACHE_ENTRIES = 200;
-const HIT_TTL_MS = 1000 * 60 * 30;
-const MISS_TTL_MS = 1000 * 60 * 5;
-const DEGRADED_TTL_MS = 1000 * 60 * 2;
-const TRANSIENT_MISS_TTL_MS = 1000 * 60;
-
+const translateLyrics = createTranslationOrchestrator([
+  translateGoogleLineChunk,
+]);
 const lyricsCacheController = createLyricsCacheController({
-  storageKey: CACHE_STORAGE_KEY,
-  hitTtlMs: HIT_TTL_MS,
-  missTtlMs: MISS_TTL_MS,
-  degradedTtlMs: DEGRADED_TTL_MS,
-  transientMissTtlMs: TRANSIENT_MISS_TTL_MS,
-  maxEntries: MAX_CACHE_ENTRIES,
+  hitTtlMs: 30 * 60 * 1_000,
+  missTtlMs: 5 * 60 * 1_000,
+  degradedTtlMs: 2 * 60 * 1_000,
+  transientMissTtlMs: 60 * 1_000,
+  maxEntries: maxLyricsCacheEntries,
   getStorage: () => getExtensionApi()?.storage?.local,
   fetchLyrics: fetchLyricsFromLrclib,
-  translateLyrics: translateLyricsResult,
+  translateLyrics,
 });
 
-export default defineBackground(() => {
-  const extensionApi = getExtensionApi();
+const handleRuntimeMessage = createRuntimeHandlerRegistry({
+  'lyra:fetchLyrics': ({ track, targetLanguage }) =>
+    lyricsCacheController.handleFetchLyrics(track, targetLanguage),
+  'lyra:translateLyrics': (request) =>
+    lyricsCacheController.handleTranslateLyrics(request),
+  'lyra:getLyricsCacheSummary': () => lyricsCacheController.getCacheSummary(),
+  'lyra:clearLyricsCache': async () => {
+    await lyricsCacheController.clearCache();
+    return { ok: true };
+  },
+});
 
-  if (extensionApi?.action && extensionApi.declarativeContent) {
-    void createToolbarActionGate({
-      action: extensionApi.action,
-      declarativeContent: extensionApi.declarativeContent,
-    }).start();
-  }
+export default defineBackground({
+  type: 'module',
+  main() {
+    const extensionApi = getExtensionApi();
 
-  extensionApi?.runtime?.onMessage.addListener((message) => {
-    if (isFetchOriginalLyricsMessage(message)) {
-      return lyricsCacheController.handleFetchOriginalLyrics(message.track);
+    if (extensionApi?.action && extensionApi.declarativeContent) {
+      void createToolbarActionGate({
+        action: extensionApi.action,
+        declarativeContent: extensionApi.declarativeContent,
+      }).start();
     }
 
-    if (isFetchLyricsMessage(message)) {
-      return lyricsCacheController.handleFetchLyrics(message.track, message.targetLanguage);
-    }
-
-    if (isTranslateLyricsMessage(message)) {
-      return lyricsCacheController.handleTranslateLyrics(message);
-    }
-
-    if (isGetLyricsCacheSummaryMessage(message)) {
-      return lyricsCacheController.getCacheSummary();
-    }
-
-    if (isClearLyricsCacheMessage(message)) {
-      return lyricsCacheController.clearCache();
-    }
-
-    return undefined;
-  });
+    extensionApi?.runtime?.onMessage.addListener(handleRuntimeMessage);
+  },
 });

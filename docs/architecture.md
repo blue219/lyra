@@ -1,111 +1,129 @@
 # Lyra Architecture
 
-This document describes the current extension structure and runtime data flow.
+This document is authoritative for Lyra's internal structure and runtime data
+flow. Lyra is a single-package Chromium Manifest V3 extension built with WXT.
 
-## Runtime overview
+## Layers and dependency direction
 
-Lyra is a WXT Manifest V3 browser extension for Spotify Web Player.
+Production code under `src/` follows one dependency direction:
 
-- The content script runs on `https://open.spotify.com/*`.
-- The toolbar action is disabled by default and enabled only on `https://open.spotify.com/*` pages through a declarative content rule.
-- The content script mounts Lyra's React replacement lyrics page only when the user is on Spotify's lyrics page or when visible Spotify lyric rows are present.
-- Lyra visually disables Spotify's native lyrics UI and keeps the native DOM available only as the source for lyric text and active-line synchronization.
-- If Spotify lyrics are missing or Spotify marks them as unsynced, the overlay requests synced fallback lyrics from LRCLIB.
-- Translation and LRCLIB fallback are routed through the background service worker when the extension runtime is available.
-- If the background service worker is unavailable during development reloads, the content code falls back to direct LRCLIB or translation calls where practical.
+```text
+domain <- ports <- application <- adapters <- ui
+                                      ^          ^
+                                      |          |
+                                  entrypoints compose dependencies
+```
 
-## Entry points
+- `domain` contains Track, Lyrics, Translation, Cache, settings, and pure rules.
+- `ports` defines the Spotify, LRCLIB, translation, storage, runtime messaging,
+  and clock seams. Production adapters and test adapters implement these ports.
+- `application` owns lyrics selection, translation orchestration, V2 cache policy,
+  and the overlay controller. These are deep modules: callers do not coordinate
+  retries, cancellation, degradation, deduplication, or state publication.
+- `adapters` contains Spotify DOM readers, HTTP providers, and Chromium
+  storage/runtime implementations.
+- `ui` renders controller state for the overlay and popup. UI code does not fetch
+  lyrics, inspect Spotify DOM, or parse runtime messages directly.
+- `entrypoints` is the composition root for background, content gate, ESM content
+  UI, and popup runtimes.
 
-| File | Responsibility |
-| --- | --- |
-| `entrypoints/content/index.tsx` | Injects the content script, watches Spotify DOM changes, mounts or removes Lyra's replacement UI, and hides native lyric text while Lyra renders its own lyrics page. |
-| `entrypoints/background.ts` | Handles lyrics, original lyrics, and translation runtime messages. It owns the persisted lyrics cache controller. |
-| `entrypoints/popup/index.html` | Hosts the browser action popup that exposes Lyra's persisted display settings. |
+There are no compatibility re-exports for the former `src/features` or
+`src/shared` paths.
 
-## Feature modules
+## Lyrics result
 
-| Directory | Responsibility |
-| --- | --- |
-| `src/features/overlay` | React replacement lyrics page, settings entry, lyrics request orchestration, Spotify DOM polling hooks, active-line selection, scroll behavior, and replacement rendering. |
-| `src/features/popup` | Browser action popup that loads and persists overlay settings through extension storage. |
-| `src/features/spotify` | Spotify DOM readers, lyrics page detection, track identity extraction, active line detection, and playback seeking helpers. |
-| `src/features/lyrics` | LRCLIB lookup, synced lyrics parsing, cache controller, and runtime message contracts. |
-| `src/features/translation` | Translation provider orchestration, Google and Bing/Microsoft web providers, language-code mapping, line-boundary validation, and degradation behavior. |
-| `src/features/settings` | Overlay settings defaults, validation, persistence helpers, and shared React settings state. |
-| `src/shared` | Shared types, supported language registry, retry helpers, extension API wrappers, and test utilities. |
+`LyricsResult` is a strict discriminated union.
 
-## Lyrics flow
+- `status: "available"` always includes original lyric lines, a `source`
+  (`spotify` or `lrclib`), and optional translation. If translation degrades, the
+  original remains available and `degradationReason` explains why.
+- `status: "unavailable"` includes a reason such as `not-found`, `instrumental`,
+  `network-error`, `rate-limited`, `provider-error`, `invalid-response`, or
+  `timeout`.
+- Cancellation is control flow, not a lyrics result. Cancelled work is neither
+  published as unavailable nor written to cache.
 
-1. `ContentApp` reads Spotify lyric rows, current track metadata, playback position, and the unsynced-lyrics notice.
-2. `selectLyricsRequest` chooses one of three paths:
-   - Spotify lyric rows when synced Spotify lyrics are available.
-   - LRCLIB fallback when Spotify lyrics are missing or unsynced and the current track can be identified.
-   - No request when neither source is usable.
-3. Spotify-sourced lines are sent to the background through `lyra:translateLyrics`.
-4. LRCLIB fallback requests are sent to the background through `lyra:fetchLyrics`.
-5. The background cache controller returns a cached result or runs the requested LRCLIB and translation flow.
-6. Lyra's replacement page renders original and translated lines, then highlights either Spotify's active line signal or the LRCLIB timestamp closest to playback.
+## Runtime protocol
 
-## Replacement UI implementation
+`RuntimeRequestMap` is the single source of truth for runtime messages. A typed
+client sends requests and a handler registry validates the complete nested
+payload before dispatch. Unknown keys, malformed arrays, invalid line entries,
+and invalid response values are rejected.
 
-Lyra's current UI model is a replacement page, not inline modification of Spotify's original lyric rows.
+Supported requests are:
 
-- `entrypoints/content/index.tsx` creates a WXT shadow-root UI named `lyra-overlay`.
-- The content script injects CSS that removes native hover treatment and makes native Spotify lyric text transparent when `data-lyra-native-lyrics-hidden="true"` is set.
-- `ContentApp` reads Spotify's lyrics container and prepends a `data-lyra-replacement-host="true"` element.
-- `ReplacementLyrics` is rendered into that host with a React portal.
-- Spotify's native DOM remains present for text extraction and active-line sync, but the user-facing lyrics page is Lyra's own rendered UI.
+| Type                         | Purpose                                                               |
+| ---------------------------- | --------------------------------------------------------------------- |
+| `lyra:fetchLyrics`           | Resolve LRCLIB fallback and optional translation for one track.       |
+| `lyra:translateLyrics`       | Translate Spotify-provided lines.                                     |
+| `lyra:getLyricsCacheSummary` | Read V2 song and entry counts.                                        |
+| `lyra:clearLyricsCache`      | Cancel active work, increment cache generation, and clear V2 entries. |
 
-## Runtime messages
+The removed combined/original-only request and direct content-script HTTP
+fallback are not supported.
 
-| Message type | Direction | Purpose |
-| --- | --- | --- |
-| `lyra:fetchLyrics` | Content to background | Fetch LRCLIB lyrics for a track and translate them for the selected target language. |
-| `lyra:fetchOriginalLyrics` | Content to background | Fetch LRCLIB original synced lyrics for a track without translation. |
-| `lyra:translateLyrics` | Content to background | Translate visible Spotify lyric lines for the selected target language. |
-| `lyra:getLyricsCacheSummary` | Content or popup to background | Read cached song count, cache entry count, and estimated storage usage for the lyrics cache. |
-| `lyra:clearLyricsCache` | Content or popup to background | Clear in-memory and persisted lyrics cache entries. |
+## Overlay controller
 
-Message schemas live in `src/features/lyrics/messages.ts`.
+The overlay controller owns one semantic state stream. It uses a narrowed,
+throttled MutationObserver that watches Spotify's main content and player areas.
+Spotify's native active-line DOM mutation drives Spotify-sourced highlighting.
+Only LRCLIB-sourced synced lyrics read playback position, approximately every
+250 ms. Playback polling pauses while the document is hidden. The controller
+publishes only when the semantic state changes.
+
+Track changes and controller disposal abort current work. A complete lyrics flow
+has a 25-second deadline; every individual HTTP attempt has an 8-second deadline.
+
+## ESM content UI loading
+
+The manifest content script is a lightweight gate. It watches Spotify SPA
+navigation and a small lyrics DOM surface. On the first `/lyrics` route or when a
+lyrics container appears, it loads `/content-scripts/esm/content.js` through an
+extension URL with Vite-ignore semantics.
+
+The ESM bundle is produced by a dedicated Vite build based on WXT's official ESM
+content-script example. WXT's development watcher rebuilds it and reloads the
+gate content script. The manifest exposes only `/content-scripts/esm/*` and only
+to `https://open.spotify.com/*` through `web_accessible_resources`.
+
+The ESM UI fetches its generated CSS by extension URL and injects it into the
+ShadowRoot. OGL remains a dynamic import and is loaded only when the dynamic
+background setting is enabled. Normal application `import()` is not used as a
+content-script splitting mechanism.
+
+## External adapters
+
+- Spotify DOM: stable `data-testid` selectors are preferred. English text is an
+  explicit fallback. Other Spotify UI languages are unsupported.
+- LRCLIB: only synchronized, non-instrumental candidates with an exactly
+  normalized title and at least one normalized artist match are accepted. If both
+  sides include duration, the difference must be no more than five seconds.
+  Track-only search uses the same acceptance rules.
+- Translation: provider requests use `credentials: "omit"`. Providers that cannot
+  work without cookies are removed with their host permission.
 
 ## Storage
 
-Lyra uses `chrome.storage.local` through `getExtensionApi()`.
+User settings remain compatible under `overlaySettings`. Persisted values are
+validated and unknown values fall back to defaults. A failed setting save is
+shown inline and the UI rolls back by re-reading persisted settings.
 
-| Key | Owner | Contents |
-| --- | --- | --- |
-| `overlaySettings` | Content overlay | User settings for `targetLanguage` and `fontSize`. |
-| `lyricsCache` | Background service worker | Cached lyrics results and expiry metadata. LRCLIB fallback keeps original lyrics separately from translated results, and Spotify translation entries use short hashed lyric-text keys. |
+Lyrics use `lyricsCacheV2`; the former `lyricsCache` value is removed during V2
+hydration. Each structured entry explicitly stores `songKey`, source, target
+language, result, expiry, and last-access time. Callers never parse a string key
+to derive metadata. Cache clear increments an in-memory generation and aborts
+active requests, so work started in an older generation cannot repopulate cache.
+The limit is 200 entries with LRU eviction. The UI reports unique song count and
+`entries/200` separately.
 
-The lyrics cache keeps up to 200 entries. Bilingual and normal monolingual results are cached for 30 minutes, confirmed unavailable results for 5 minutes, transient unavailable results for 1 minute, and translation-degraded results for 2 minutes.
+Available results use a 30-minute TTL, confirmed unavailable results use five
+minutes, transient failures use one minute, and translation-degraded originals
+use two minutes. Timeout results are transient. Cancellation is not cached.
 
-The background cache controller also exposes cache summary and clear operations for the two settings surfaces. Summary values are derived from current cache entries and grouped by song-shaped cache keys so the UI can show an approximate cached song count and serialized storage size.
+## Action and permissions
 
-## External services
-
-| Service | Used for | Configuration |
-| --- | --- | --- |
-| Spotify Web Player | Visible lyric DOM, track identity, playback position, and seek interactions. | Content script match: `https://open.spotify.com/*`. |
-| LRCLIB | Synced fallback lyrics when Spotify lyrics are missing or unsynced. Lyra uses the public `https://lrclib.net/api` service through HTTP requests. | Host permission: `https://lrclib.net/*`; see `docs/lrclib-api.md`. |
-| Translation provider chain | Primary bilingual translation path. Lyra calls Google Translate first, then Microsoft Translator and Bing Translator web endpoints for failed chunks, and validates lyric line boundaries before using any result. | Host permissions: `https://translate.googleapis.com/*`, `https://translator.bing.com/*`, `https://www.bing.com/*`; no environment variable is required. |
-
-## Settings
-
-The current settings surface supports:
-
-- Target language: English, Simplified Chinese, Traditional Chinese, Japanese, Korean, Spanish, French, German, Portuguese, Italian, Russian, or Indonesian.
-- Font size: `sm`, `md`, or `lg`.
-- Lyrics cache summary: cached song count and estimated storage usage.
-- Lyrics cache clearing: removes persisted and in-memory lyrics cache entries.
-
-These settings are available both from the in-page Spotify lyrics overlay and from the browser action popup.
-
-Unsupported or malformed persisted settings are sanitized back to defaults before use.
-
-## Known boundaries
-
-- Lyra does not open Spotify's lyrics panel automatically.
-- Spotify-sourced lyrics do not expose LRCLIB-style timestamps, so Spotify's native active-line signal drives sync for that source.
-- LRCLIB line clicks seek Spotify playback by timestamp; Spotify-sourced line clicks delegate to Spotify's native lyric row click behavior.
-- Translation uses unofficial web endpoints that can change or become rate limited.
-- Translation is skipped when provider requests fail, source detection fails, a language pair is unsupported, or translated line counts do not match original line counts.
+The browser action is disabled by default and enabled only on
+`https://open.spotify.com/*` by the background adapter. The manifest requires
+`storage` and `declarativeContent`, Spotify content matches, and the minimum host
+permissions for accepted HTTP providers. Contract tests lock these values and the
+restricted WAR scope.

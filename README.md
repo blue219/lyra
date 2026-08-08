@@ -1,159 +1,44 @@
 # Lyra
 
-<p align="center">
-  <img src="src/assets/branding/toolbar/lyra-toolbar-green-transparent.png" alt="Lyra logo" width="160">
-</p>
+Lyra is a Chromium Manifest V3 extension that displays original and translated
+lyrics in Spotify Web Player. It prefers Spotify's synced lyrics and uses
+[LRCLIB](https://lrclib.net) as an accuracy-checked fallback.
 
-<p align="center">
-  <strong>Bilingual lyrics for Spotify Web Player.</strong>
-</p>
+## Use Lyra
 
-<p align="center">
-  Lyra replaces Spotify's lyrics view with a clean React-powered bilingual lyrics page,
-  backed by Spotify's native lyric sync, LRCLIB fallback lyrics, and a web translation provider chain.
-</p>
-
-<p align="center">
-  <img alt="Node.js 22" src="https://img.shields.io/badge/Node.js-22-339933?logo=nodedotjs&logoColor=white">
-  <img alt="React 19" src="https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=111111">
-  <img alt="TypeScript 6" src="https://img.shields.io/badge/TypeScript-6-3178C6?logo=typescript&logoColor=white">
-  <img alt="WXT" src="https://img.shields.io/badge/WXT-0.20-6B5CFF">
-  <img alt="Manifest V3" src="https://img.shields.io/badge/Manifest-V3-4285F4?logo=googlechrome&logoColor=white">
-</p>
-
-## Overview
-
-Lyra is a Chromium browser extension for Spotify Web Player. It helps listeners read original lyrics alongside a selected translation language while the song is playing.
-
-Instead of injecting translated text into Spotify's native lyric rows, Lyra visually disables the native lyrics UI, keeps Spotify's DOM available as a data and sync source, and renders its own lyrics page in the same area. When Spotify lyrics are unavailable or unsynced, Lyra can fall back to synced lyrics from [LRCLIB](https://github.com/tranxuanthang/lrclib).
-
-Translation uses Google Translate's web endpoint first, then falls back to Microsoft Translator and Bing Translator web endpoints for failed lyric chunks. When no provider can preserve lyric line boundaries, Lyra keeps showing the original lyrics.
-
-The toolbar action is disabled by default and is shown as available only on Spotify Web Player pages. Clicking the enabled toolbar action opens a compact settings popup for Lyra's target language, font size, dynamic background preferences, and lyrics cache management.
-
-## Features
-
-- Detects the currently playing Spotify track.
-- Reads Spotify's visible synced lyric rows when available.
-- Falls back to synced LRCLIB lyrics when Spotify lyrics are missing or unsynced.
-- Displays original and translated lyrics together.
-- Highlights the active lyric line during playback.
-- Supports line clicks for active-line selection and LRCLIB timestamp seeking.
-- Persists basic overlay settings such as target language, font size, and dynamic background preference.
-- Shows cached song count and estimated cache size, and lets users clear stored lyrics cache from either settings surface.
-- Renders a low-power aurora background that can fall back to a static gradient.
-- Keeps translation failure graceful by showing original lyrics when translation is unavailable.
-
-## Tech Stack
-
-| Area | Technology |
-| --- | --- |
-| Extension framework | WXT, Manifest V3 |
-| UI | React 19, Tailwind CSS 4 |
-| Language | TypeScript 6 |
-| Build tooling | Vite 8 |
-| Testing | Vitest, jsdom |
-| Background rendering | OGL WebGL renderer |
-| Lyrics source | Spotify Web Player DOM, LRCLIB |
-| Translation | Google, Microsoft Translator, and Bing Translator web endpoints |
-
-## Project Structure
-
-```text
-entrypoints/                 WXT extension entrypoints
-src/features/overlay         Lyrics replacement UI and content app state
-src/features/spotify         Spotify Web Player DOM readers and track helpers
-src/features/lyrics          LRCLIB fallback, synced lyric parsing, cache, messages
-src/features/translation     Translation provider orchestration
-src/features/settings        Overlay settings defaults and validation
-src/shared                   Shared types, retry helpers, and extension utilities
-docs/                        Architecture, development, and API notes
-```
-
-## Getting Started
-
-### Prerequisites
-
-- Node.js 22 LTS
-- npm
-- Chrome or another Chromium-based browser
-
-### Installation
-
-Install dependencies:
+Requirements: Node.js 22, npm 10.9.4, and a Chromium browser.
 
 ```bash
 npm install
-```
-
-Start WXT development mode on port `5173`:
-
-```bash
 npm run dev
 ```
 
-Load the unpacked extension:
+Open `chrome://extensions`, enable developer mode, choose **Load unpacked**, and
+select `.output/chrome-mv3-dev`. Then open `https://open.spotify.com`, navigate to
+the lyrics view, and use the Lyra toolbar popup to choose a translation language,
+font size, and dynamic background preference.
 
-1. Open `chrome://extensions`.
-2. Enable developer mode.
-3. Click **Load unpacked**.
-4. Select `.output/chrome-mv3-dev`.
-5. Open Spotify Web Player and navigate to the lyrics view.
-
-Use `.output/chrome-mv3` only after running `npm run build` for a production bundle.
-
-## Configuration
-
-Lyra does not require local environment variables for translation. The generated extension manifest grants access to LRCLIB, Google Translate, Microsoft Translator, and Bing Translator through static host permissions, and uses `declarativeContent` to enable the toolbar action only on Spotify Web Player pages.
-
-## Available Scripts
-
-| Command | Description |
-| --- | --- |
-| `npm run dev` | Start WXT development mode on port `5173`. |
-| `npm test` | Run the Vitest suite once. |
-| `npm run test:watch` | Run Vitest in watch mode. |
-| `npm run compile` | Run TypeScript without emitting files. |
-| `npm run build` | Build the production extension bundle. |
-| `npm run zip` | Create a distributable extension zip through WXT. |
-
-## Validation
-
-Run the smallest relevant checks while developing:
+Production packages are created with:
 
 ```bash
-npm test
-npm run compile
 npm run build
+npm run zip
 ```
-
-For browser-level validation during development, load `.output/chrome-mv3-dev`, open Spotify Web Player, enter the lyrics view, and confirm that Lyra renders the replacement lyrics page with readable original and translated lines. The settings popover can disable the dynamic aurora background for a static gradient fallback. For a production bundle, run `npm run build` and load `.output/chrome-mv3`.
 
 ## Documentation
 
-- [Development notes](docs/development.md): local loading, manual smoke checks, caching, and integration behavior.
-- [Architecture](docs/architecture.md): extension data flow, storage keys, runtime messages, and boundaries.
-- [LRCLIB API](docs/lrclib-api.md): synced fallback lyrics API usage and Lyra integration details.
+- [Architecture](docs/architecture.md) is authoritative for layers, runtime
+  messages, settings, caching, and content loading.
+- [Development](docs/development.md) contains setup, validation, E2E, and manual
+  smoke instructions.
+- [LRCLIB integration](docs/lrclib-api.md) documents candidate acceptance and
+  HTTP behavior.
+- [Privacy](PRIVACY.md) describes data handling.
+- [Visual reference](DESIGN.md) is non-normative design guidance.
 
-## Known Boundaries
-
-- Lyra does not open Spotify's lyrics panel automatically.
-- Spotify-sourced lyrics use Spotify's native active-line signal rather than LRCLIB timestamps.
-- Translation uses unofficial web endpoints that can change, fail, or become rate limited.
-- Translation is skipped when provider requests fail, language detection fails, the language pair is unsupported, or translated line counts do not match original lines.
-
-## Contributing
-
-Contributions should keep Lyra simple, reliable, and focused on Spotify bilingual lyrics.
-
-Before opening a change:
-
-1. Read the relevant document in `docs/`.
-2. Keep changes scoped to the affected feature area.
-3. Prefer existing project utilities and patterns.
-4. Run the smallest relevant validation command first.
-5. Update documentation when setup, usage, behavior, APIs, or environment variables change.
+Lyra supports the English Spotify UI on Chromium MV3. It does not open Spotify's
+lyrics view automatically and does not provide a lyric-position setting.
 
 ## License
 
-Lyra is licensed under the [MIT License](LICENSE).
+[MIT](LICENSE)
