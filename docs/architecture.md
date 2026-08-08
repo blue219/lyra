@@ -110,15 +110,17 @@ shown inline and the UI rolls back by re-reading persisted settings.
 
 Lyrics use `lyricsCacheV2`; the former `lyricsCache` value is removed during V2
 hydration. Each structured entry explicitly stores `songKey`, source, target
-language, result, expiry, and last-access time. Callers never parse a string key
+language, result, optional expiry, and last-access time. Callers never parse a string key
 to derive metadata. Cache clear increments an in-memory generation and aborts
 active requests, so work started in an older generation cannot repopulate cache.
 The limit is 200 entries with LRU eviction. The UI reports unique song count and
 `entries/200` separately.
 
-Available results use a 30-minute TTL, confirmed unavailable results use five
-minutes, transient failures use one minute, and translation-degraded originals
-use two minutes. Timeout results are transient. Cancellation is not cached.
+Complete available results are kept locally without expiry until the user clears
+the cache or they are evicted by the 200-entry LRU limit. Confirmed unavailable
+results use a five-minute TTL, transient failures use one minute, and
+translation-degraded originals use two minutes. Timeout results are transient.
+Cancellation is not cached.
 
 ## Action and permissions
 

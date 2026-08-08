@@ -54,23 +54,23 @@ describe('SettingsEntry', () => {
       />,
     );
 
-    expect(html).toContain('Target language');
+    expect(html).toContain('Language');
     expect(html).toContain('Chinese (Simplified)');
     expect(html).toContain('Chinese (Traditional)');
     expect(html).toContain('Japanese');
     expect(html).toContain('Korean');
     expect(html).toContain('Spanish');
     expect(html).toContain('Font size');
-    expect(html).toContain('Dynamic background');
+    expect(html).toContain('Dynamic');
     expect(html).toContain('Cache');
-    expect(html).toContain('Cached songs');
-    expect(html).toContain('>12<');
+    expect(html).toContain('>Lyra<');
+    expect(html).toContain('Open Lyra on GitHub');
+    expect(html).toContain('https://github.com/blue219/lyra');
     expect(html).toContain('14/200');
-    expect(html).toContain('Cache size');
     expect(html).toContain('3.5 KB');
     expect(html).toContain('Clear');
     expect(html).toContain('bg-[#ff1010]');
-    expect(html).toContain('rounded-[999px] bg-[#ff1010]');
+    expect(html).toContain('border border-[#ff1010]');
     expect(html).toContain('aria-checked="true"');
     expect(html).toContain('right:24px');
     expect(html).toContain('top:48px');
@@ -78,13 +78,10 @@ describe('SettingsEntry', () => {
     expect(html).toContain('rounded-full');
     expect(html).toContain('<img');
     expect(html).toContain('w-[min(88vw,274px)]');
-    expect(html).toContain('p-4');
-    expect(html).toContain('rounded-[24px]');
-    expect(html).toContain('tracking-[4px]');
+    expect(html).toContain('rounded-[20px]');
     expect(html).toContain('rounded-[999px]');
     expect(html).toContain('bg-[var(--lyra-color-accent)] text-black');
     expect(html).toContain('data-lyra-settings-notch="true"');
-    expect(html).toContain('text-[10px]');
     expect(html).toContain('text-[0.82rem]');
     expect(html).toContain('text-[0.78rem]');
     expect(html).toContain('p-1');
@@ -94,7 +91,7 @@ describe('SettingsEntry', () => {
     expect(html).toContain('right-[14px]');
     expect(html).toContain('h-4 w-4');
     expect(html).toContain('pr-[10px]');
-    expect(html).not.toContain('border-t border-white/10');
+    expect(html).toContain('border-t border-white/10');
     expect(html).not.toContain(
       'Falls back to static when motion should be reduced.',
     );
@@ -115,7 +112,7 @@ describe('SettingsEntry', () => {
       />,
     );
 
-    expect(html).toContain('Dynamic background');
+    expect(html).toContain('Dynamic');
     expect(html).toContain('aria-checked="false"');
   });
 });

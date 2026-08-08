@@ -3,7 +3,7 @@ import { describe, expect, test } from 'vitest';
 import type { LyricsCacheEntryV2 } from '@/src/domain/cache';
 import { LyricsCache } from './cache';
 
-function entry(id: string, expiresAt = 100): LyricsCacheEntryV2 {
+function entry(id: string, expiresAt: number | null = 100): LyricsCacheEntryV2 {
   return {
     version: 2,
     id,
@@ -17,7 +17,7 @@ function entry(id: string, expiresAt = 100): LyricsCacheEntryV2 {
 }
 
 describe('LyricsCache', () => {
-  test('expires, restores, touches, evicts, lists, and clears entries', () => {
+  test('keeps permanent entries while expiring temporary entries', () => {
     const cache = new LyricsCache(2);
     expect(cache.get('missing', 0)).toBeNull();
     expect(cache.restore(entry('expired', 1), 1)).toBe(false);
@@ -30,6 +30,10 @@ describe('LyricsCache', () => {
     cache.set(entry('soon', 21));
     expect(cache.get('soon', 21)).toBeNull();
     expect(cache.getEntries(200)).toEqual([]);
+    cache.set(entry('permanent', null));
+    expect(cache.get('permanent', 200)).toEqual(
+      entry('permanent', null).result,
+    );
     cache.set(entry('last', 300));
     cache.clear();
     expect(cache.getEntries(0)).toEqual([]);

@@ -42,7 +42,6 @@ function createController(overrides: Record<string, unknown> = {}) {
         : result,
   );
   const controller = createLyricsCacheController({
-    hitTtlMs: 30_000,
     missTtlMs: 5_000,
     degradedTtlMs: 2_000,
     transientMissTtlMs: 1_000,
@@ -73,6 +72,16 @@ describe('lyrics cache controller V2', () => {
       entryCount: 3,
       maxEntries: 200,
     });
+  });
+
+  test('persists complete lyrics without an expiry', async () => {
+    const { controller, storage } = createController();
+
+    await controller.handleFetchLyrics(track);
+
+    expect(storage.values[lyricsCacheV2StorageKey]).toEqual([
+      expect.objectContaining({ expiresAt: null, result: original }),
+    ]);
   });
 
   test('clear aborts stale work and stale completion cannot repopulate V2', async () => {
@@ -126,7 +135,7 @@ describe('lyrics cache controller V2', () => {
     });
   });
 
-  test('hydrates only live V2 entries and removes the legacy cache', async () => {
+  test('migrates complete lyrics to permanent entries and discards expired failures', async () => {
     const storage = createStorage();
     storage.values[lyricsCacheV2StorageKey] = [
       {
@@ -135,15 +144,24 @@ describe('lyrics cache controller V2', () => {
         songKey: 'song',
         source: 'lrclib',
         targetLanguage: null,
-        expiresAt: 100,
+        expiresAt: 1,
         lastAccessedAt: 0,
         result: original,
+      },
+      {
+        version: 2,
+        id: 'expired-failure',
+        songKey: 'song',
+        source: 'lrclib',
+        targetLanguage: null,
+        expiresAt: 1,
+        lastAccessedAt: 0,
+        result: { status: 'unavailable', reason: 'timeout', lines: [] },
       },
       { version: 1 },
       null,
     ];
     const controller = createLyricsCacheController({
-      hitTtlMs: 100,
       missTtlMs: 100,
       degradedTtlMs: 100,
       transientMissTtlMs: 100,
@@ -161,6 +179,9 @@ describe('lyrics cache controller V2', () => {
       songCount: 1,
       entryCount: 1,
     });
+    expect(storage.values[lyricsCacheV2StorageKey]).toEqual([
+      expect.objectContaining({ id: 'valid', expiresAt: null }),
+    ]);
     expect(storage.remove).toHaveBeenCalledWith('lyricsCache');
   });
 
@@ -170,7 +191,6 @@ describe('lyrics cache controller V2', () => {
     failingStorage.get.mockRejectedValueOnce(new Error('read failed'));
     failingStorage.set.mockRejectedValue(new Error('write failed'));
     const controller = createLyricsCacheController({
-      hitTtlMs: 100,
       missTtlMs: 100,
       degradedTtlMs: 100,
       transientMissTtlMs: 100,
@@ -192,7 +212,6 @@ describe('lyrics cache controller V2', () => {
   test('works without extension storage and translates Spotify lines', async () => {
     const translateLyrics = vi.fn(async (value: LyricsResult) => value);
     const controller = createLyricsCacheController({
-      hitTtlMs: 100,
       missTtlMs: 100,
       degradedTtlMs: 100,
       transientMissTtlMs: 100,
@@ -220,7 +239,6 @@ describe('lyrics cache controller V2', () => {
     };
     const translateLyrics = vi.fn();
     const controller = createLyricsCacheController({
-      hitTtlMs: 100,
       missTtlMs: 100,
       degradedTtlMs: 100,
       transientMissTtlMs: 100,

@@ -9,7 +9,7 @@ export class LyricsCache {
   get(id: string, nowMs: number): LyricsResult | null {
     const entry = this.entries.get(id);
     if (!entry) return null;
-    if (entry.expiresAt <= nowMs) {
+    if (isExpired(entry, nowMs)) {
       this.entries.delete(id);
       return null;
     }
@@ -31,14 +31,14 @@ export class LyricsCache {
   }
 
   restore(entry: LyricsCacheEntryV2, nowMs: number): boolean {
-    if (entry.expiresAt <= nowMs) return false;
+    if (isExpired(entry, nowMs)) return false;
     this.set(entry);
     return true;
   }
 
   getEntries(nowMs: number): LyricsCacheEntryV2[] {
     for (const [id, entry] of this.entries) {
-      if (entry.expiresAt <= nowMs) this.entries.delete(id);
+      if (isExpired(entry, nowMs)) this.entries.delete(id);
     }
     return [...this.entries.values()];
   }
@@ -46,4 +46,8 @@ export class LyricsCache {
   clear(): void {
     this.entries.clear();
   }
+}
+
+function isExpired(entry: LyricsCacheEntryV2, nowMs: number): boolean {
+  return entry.expiresAt !== null && entry.expiresAt <= nowMs;
 }

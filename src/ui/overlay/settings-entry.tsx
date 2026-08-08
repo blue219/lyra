@@ -44,7 +44,7 @@ export function SettingsEntry({
       <button
         aria-label="Open Lyra settings"
         className={[
-          'flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-[rgba(18,18,18,0.72)] p-1 text-[var(--lyra-color-accent)] antialiased shadow-[0_0_0_1px_rgba(255,255,255,0.04),0_6px_18px_rgba(0,0,0,0.26)] transition hover:border-[var(--lyra-color-accent)]/35 hover:bg-[rgba(18,18,18,0.86)] hover:shadow-[0_0_0_1px_rgba(255,255,255,0.06),0_8px_22px_rgba(0,0,0,0.32)]',
+          'flex h-10 w-10 cursor-pointer items-center justify-center rounded-full border border-white/10 bg-[rgba(18,18,18,0.72)] p-1 text-[var(--lyra-color-accent)] antialiased shadow-[0_0_0_1px_rgba(255,255,255,0.04),0_6px_18px_rgba(0,0,0,0.26)] transition hover:border-[var(--lyra-color-accent)]/35 hover:bg-[rgba(18,18,18,0.86)] hover:shadow-[0_0_0_1px_rgba(255,255,255,0.06),0_8px_22px_rgba(0,0,0,0.32)]',
           isOpen ? 'ring-2 ring-[var(--lyra-color-accent)]/30' : '',
         ].join(' ')}
         type="button"

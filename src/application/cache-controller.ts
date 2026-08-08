@@ -22,7 +22,6 @@ import {
 import { LyricsCache } from './cache';
 
 interface LyricsCacheControllerOptions {
-  hitTtlMs: number;
   missTtlMs: number;
   degradedTtlMs: number;
   transientMissTtlMs: number;
@@ -78,8 +77,22 @@ export function createLyricsCacheController(
       const entries = stored[lyricsCacheV2StorageKey];
       if (Array.isArray(entries)) {
         const now = clock.now();
+        let shouldPersist = false;
         for (const value of entries) {
-          if (isLyricsCacheEntryV2(value)) cache.restore(value, now);
+          if (!isLyricsCacheEntryV2(value)) {
+            shouldPersist = true;
+            continue;
+          }
+
+          // Promote complete lyrics cached under the former TTL policy.
+          const entry = makeCompleteEntryPermanent(value);
+          const restored = cache.restore(entry, now);
+          shouldPersist ||= entry !== value || !restored;
+        }
+        if (shouldPersist) {
+          await storage.set({
+            [lyricsCacheV2StorageKey]: cache.getEntries(now),
+          });
         }
       }
       await storage.remove(legacyLyricsCacheStorageKey);
@@ -165,7 +178,7 @@ export function createLyricsCacheController(
           songKey: identity.songKey,
           source,
           targetLanguage,
-          expiresAt: now + getTtl(result),
+          expiresAt: getExpiresAt(result, now),
           lastAccessedAt: now,
           result,
         });
@@ -192,19 +205,18 @@ export function createLyricsCacheController(
     return promise;
   }
 
-  function getTtl(result: LyricsResult): number {
+  function getExpiresAt(result: LyricsResult, now: number): number | null {
+    if (isCompleteAvailableResult(result)) return null;
+
     if (result.status === 'unavailable') {
-      return isTransientReason(result.reason)
-        ? options.transientMissTtlMs
-        : options.missTtlMs;
+      return (
+        now +
+        (isTransientReason(result.reason)
+          ? options.transientMissTtlMs
+          : options.missTtlMs)
+      );
     }
-    if (
-      result.degradationReason &&
-      result.degradationReason !== 'same-language'
-    ) {
-      return options.degradedTtlMs;
-    }
-    return options.hitTtlMs;
+    return now + options.degradedTtlMs;
   }
 
   async function originalLyrics(track: TrackIdentity): Promise<LyricsResult> {
@@ -316,9 +328,26 @@ function isLyricsCacheEntryV2(value: unknown): value is LyricsCacheEntryV2 {
     (entry.source === 'spotify' || entry.source === 'lrclib') &&
     (entry.targetLanguage === null ||
       typeof entry.targetLanguage === 'string') &&
-    typeof entry.expiresAt === 'number' &&
+    (entry.expiresAt === null || typeof entry.expiresAt === 'number') &&
     typeof entry.lastAccessedAt === 'number' &&
     Boolean(entry.result) &&
     typeof entry.result === 'object'
+  );
+}
+
+function makeCompleteEntryPermanent(
+  entry: LyricsCacheEntryV2,
+): LyricsCacheEntryV2 {
+  if (entry.expiresAt === null || !isCompleteAvailableResult(entry.result)) {
+    return entry;
+  }
+
+  return { ...entry, expiresAt: null };
+}
+
+function isCompleteAvailableResult(result: LyricsResult): boolean {
+  return (
+    result.status === 'available' &&
+    (!result.degradationReason || result.degradationReason === 'same-language')
   );
 }

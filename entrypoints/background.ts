@@ -11,7 +11,6 @@ const translateLyrics = createTranslationOrchestrator([
   translateGoogleLineChunk,
 ]);
 const lyricsCacheController = createLyricsCacheController({
-  hitTtlMs: 30 * 60 * 1_000,
   missTtlMs: 5 * 60 * 1_000,
   degradedTtlMs: 2 * 60 * 1_000,
   transientMissTtlMs: 60 * 1_000,

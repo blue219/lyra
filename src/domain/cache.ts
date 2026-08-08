@@ -10,7 +10,7 @@ export interface LyricsCacheEntryV2 {
   songKey: string;
   source: LyricsSource;
   targetLanguage: string | null;
-  expiresAt: number;
+  expiresAt: number | null;
   lastAccessedAt: number;
   result: LyricsResult;
 }

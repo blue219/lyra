@@ -13,7 +13,7 @@ async function flushEffects() {
 }
 
 describe('PopupApp', () => {
-  test('renders only the settings card without an extra popup shell', () => {
+  test('renders the settings card in the popup layout', () => {
     const html = renderToStaticMarkup(<PopupApp extensionApi={null} />);
 
     expect(html).toContain('rounded-none');
@@ -21,6 +21,9 @@ describe('PopupApp', () => {
     expect(html).toContain('shadow-none');
     expect(html).not.toContain('circle_at_top_left');
     expect(html).toContain('w-[274px]');
+    expect(html).toContain('<header');
+    expect(html).toContain('>Lyra<');
+    expect(html).toContain('border-t border-white/10');
   });
 
   test('loads persisted settings into the popup controls', async () => {
@@ -51,7 +54,7 @@ describe('PopupApp', () => {
       await flushEffects();
     });
 
-    expect(container.innerHTML).toContain('Target language');
+    expect(container.innerHTML).toContain('Language');
     expect(
       container.querySelector<HTMLSelectElement>('#lyra-target-language')
         ?.value,
@@ -162,14 +165,11 @@ describe('PopupApp', () => {
       await flushEffects();
     });
 
-    expect(container.textContent).toContain('Cached songs');
-    expect(container.textContent).toContain('Cached songs12');
-    expect(container.textContent).toContain('Cache entries14/200');
-    expect(container.textContent).toContain('Cache size');
+    expect(container.textContent).toContain('Cache14/200 entries');
     expect(container.textContent).toContain('3.5 KB');
     expect(container.innerHTML).toContain('bg-[#ff1010]');
-    expect(container.innerHTML).toContain('rounded-[999px] bg-[#ff1010]');
-    expect(container.innerHTML).not.toContain('border-t border-white/10');
+    expect(container.innerHTML).toContain('border border-[#ff1010]');
+    expect(container.innerHTML).toContain('border-t border-white/10');
 
     const clearButton = Array.from(container.querySelectorAll('button')).find(
       (button) => button.textContent?.toUpperCase().includes('CLEAR'),
