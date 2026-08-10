@@ -9,6 +9,7 @@
 </p>
 
 <p align="center">
+  <a href="https://chromewebstore.google.com/detail/lyra/niidbfopdffpahbgohhgbiiimpmpdodn?hl=en-US&amp;utm_source=ext_sidebar"><img alt="Install Lyra from the Chrome Web Store" src="https://img.shields.io/badge/Chrome_Web_Store-Install-4285F4?style=flat-square&amp;logo=googlechrome&amp;logoColor=white"></a>
   <a href="LICENSE"><img alt="License: MIT" src="https://img.shields.io/github/license/blue219/lyra?style=flat-square"></a>
   <img alt="Manifest V3" src="https://img.shields.io/badge/Manifest-V3-4285F4?style=flat-square&logo=googlechrome&logoColor=white">
   <img alt="React 19" src="https://img.shields.io/badge/React-19-20232A?style=flat-square&logo=react&logoColor=61DAFB">
@@ -37,17 +38,29 @@ are missing or unsynchronized.
 - **Lightweight loading** — defer the main interface until Spotify's lyrics view
   is opened.
 
+## Screenshots
+
+<p align="center">
+  <img src="docs/images/lyrics-settings.jpg" width="49%" alt="Lyra bilingual lyrics with the settings panel open">
+  <img src="docs/images/chinese-english-lyrics.jpg" width="49%" alt="Lyra displaying synchronized Chinese and English lyrics">
+  <img src="docs/images/synced-bilingual-lyrics.jpg" width="49%" alt="Lyra highlighting synchronized English and Japanese lyrics">
+  <img src="docs/images/cover-aware-lyrics.jpg" width="49%" alt="Lyra lyrics with a cover-aware background palette">
+</p>
+
 ## Installation
 
-Lyra is currently installed from source as an unpacked Chromium extension.
+Install Lyra from the
+[Chrome Web Store](https://chromewebstore.google.com/detail/lyra/niidbfopdffpahbgohhgbiiimpmpdodn?hl=en-US&utm_source=ext_sidebar).
+
+### Build from source
+
+You can also build and load Lyra as an unpacked Chromium extension.
 
 ### Prerequisites
 
 - Node.js `>=22 <23`
 - npm `10.9.4`
 - A Chromium-based browser
-
-### Build from source
 
 ```bash
 git clone https://github.com/blue219/lyra.git
