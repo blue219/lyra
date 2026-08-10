@@ -71,6 +71,7 @@ export function ContentApp() {
   );
   const [selectedLineState, setSelectedLineState] =
     useState<SelectedLineState | null>(null);
+  const [selectionScrollRequestId, setSelectionScrollRequestId] = useState(0);
   const [coverPalette, setCoverPalette] =
     useState<CoverPalette>(fixedCoverPalette);
   const previousSettingsOpenRef = useRef(false);
@@ -193,6 +194,7 @@ export function ContentApp() {
     lyrics,
     playbackPositionMs,
     replacementHost,
+    scrollRequestId: selectionScrollRequestId,
   });
 
   useEffect(() => {
@@ -216,6 +218,7 @@ export function ContentApp() {
         syncedActiveLineIndex,
       }),
     );
+    setSelectionScrollRequestId((requestId) => requestId + 1);
     keepReplacementLyricsInView(replacementHost);
 
     if (lyrics.source === 'spotify') {

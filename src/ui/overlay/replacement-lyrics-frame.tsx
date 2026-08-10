@@ -1,5 +1,6 @@
 import {
   useEffect,
+  useLayoutEffect,
   useRef,
   useState,
   type CSSProperties,
@@ -16,13 +17,14 @@ import {
 export const loadingSkeletonGroupCount = 5;
 export const lyricsContentMaxWidth = '1024px';
 export const lyricsHorizontalPadding = 'clamp(20px, 4vw, 48px)';
-export const defaultLyricsPadding = `64px ${lyricsHorizontalPadding}`;
+export const defaultLyricsPadding = `64px ${lyricsHorizontalPadding} 0`;
 export const loadingLyricsPadding = `24px ${lyricsHorizontalPadding} 64px`;
 export const skeletonOriginalWidth = '66.6667%';
 export const skeletonTranslationWidth = '33.3333%';
 
 const replacementViewportHeight = 'calc(100vh - 96px)';
 const replacementViewportNegativeMargin = 'calc(-1 * (100vh - 96px))';
+const spotifyPlayerSelector = '[data-testid="now-playing-bar"]';
 const coverPaletteTransitionMs = 350;
 const skeletonHighlightGradient =
   'linear-gradient(90deg, rgba(255, 255, 255, 0) 0%, rgba(255, 255, 255, 0.08) 18%, rgba(255, 255, 255, 0.42) 50%, rgba(255, 255, 255, 0.08) 82%, rgba(255, 255, 255, 0) 100%)';
@@ -88,6 +90,22 @@ export function getStatusTextStyle(): CSSProperties {
     margin: 0,
     textTransform: 'uppercase',
   };
+}
+
+export function calculateLyricsViewportHeight({
+  fallbackHeight,
+  lyricsTop,
+  playerTop,
+}: {
+  fallbackHeight: string;
+  lyricsTop: number;
+  playerTop: number | null;
+}): string {
+  if (playerTop === null || playerTop <= lyricsTop) {
+    return fallbackHeight;
+  }
+
+  return `${Math.floor(playerTop - lyricsTop)}px`;
 }
 
 export function StatusLabel({
@@ -182,17 +200,63 @@ export function ReplacementLyricsFrame({
   selectable?: boolean;
 }) {
   const displayedCoverPalette = useInterpolatedCoverPalette(coverPalette);
+  const frameRef = useRef<HTMLElement>(null);
+  const [viewportHeight, setViewportHeight] = useState(
+    replacementViewportHeight,
+  );
+  const viewportNegativeMargin =
+    viewportHeight === replacementViewportHeight
+      ? replacementViewportNegativeMargin
+      : `-${viewportHeight}`;
+
+  useLayoutEffect(() => {
+    const frame = frameRef.current;
+    const player = document.querySelector<HTMLElement>(spotifyPlayerSelector);
+
+    if (!frame || !player) {
+      return;
+    }
+
+    // Spotify's player height varies by layout, so it defines the lyrics viewport edge.
+    const updateViewportHeight = () => {
+      const nextHeight = calculateLyricsViewportHeight({
+        fallbackHeight: replacementViewportHeight,
+        lyricsTop: frame.getBoundingClientRect().top,
+        playerTop: player.getBoundingClientRect().top,
+      });
+
+      setViewportHeight((currentHeight) =>
+        currentHeight === nextHeight ? currentHeight : nextHeight,
+      );
+    };
+
+    updateViewportHeight();
+    window.addEventListener('resize', updateViewportHeight);
+
+    if (typeof ResizeObserver === 'undefined') {
+      return () => window.removeEventListener('resize', updateViewportHeight);
+    }
+
+    const resizeObserver = new ResizeObserver(updateViewportHeight);
+    resizeObserver.observe(player);
+
+    return () => {
+      window.removeEventListener('resize', updateViewportHeight);
+      resizeObserver.disconnect();
+    };
+  }, []);
 
   return (
     <section
       className="lyra-replacement-lyrics"
       data-lyra-replacement-lyrics="true"
       data-lyra-replacement-scroll="true"
+      ref={frameRef}
       style={{
         backgroundColor: '#121212',
         boxSizing: 'border-box',
         color: '#ffffff',
-        height: replacementViewportHeight,
+        height: viewportHeight,
         overflowX: 'hidden',
         overflowY: 'auto',
         position: 'relative',
@@ -210,6 +274,8 @@ export function ReplacementLyricsFrame({
       <AuroraLayer
         colorStops={displayedCoverPalette}
         dynamicBackground={dynamicBackground}
+        viewportHeight={viewportHeight}
+        viewportNegativeMargin={viewportNegativeMargin}
       />
       <div
         data-lyra-aurora-shell="true"
@@ -244,9 +310,13 @@ export function ReplacementLyricsFrame({
 function AuroraLayer({
   colorStops,
   dynamicBackground,
+  viewportHeight,
+  viewportNegativeMargin,
 }: {
   colorStops: CoverPalette;
   dynamicBackground: boolean;
+  viewportHeight: string;
+  viewportNegativeMargin: string;
 }) {
   const [light, middle, dark] = colorStops;
   return (
@@ -254,8 +324,8 @@ function AuroraLayer({
       aria-hidden="true"
       data-lyra-aurora="true"
       style={{
-        height: replacementViewportHeight,
-        marginBottom: replacementViewportNegativeMargin,
+        height: viewportHeight,
+        marginBottom: viewportNegativeMargin,
         overflow: 'hidden',
         pointerEvents: 'none',
         position: 'sticky',

@@ -199,6 +199,25 @@ export function calculateCenteredScrollTop({
   return Math.min(Math.max(0, centeredTop), maxScrollTop);
 }
 
+export function calculateLastLineBottomPadding({
+  activeOffsetTop,
+  activeHeight,
+  containerHeight,
+  contentHeight,
+}: {
+  activeOffsetTop: number;
+  activeHeight: number;
+  containerHeight: number;
+  contentHeight: number;
+}): number {
+  const followScrollTop = Math.max(
+    0,
+    activeOffsetTop + activeHeight / 2 - containerHeight / 2,
+  );
+
+  return Math.max(0, followScrollTop + containerHeight - contentHeight);
+}
+
 export function shouldResetScrollTopOnPlaybackReset({
   previousPlaybackPositionMs,
   playbackPositionMs,

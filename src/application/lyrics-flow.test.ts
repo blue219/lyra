@@ -6,6 +6,7 @@ import type {
   TrackIdentity,
 } from '@/src/domain/model';
 import {
+  calculateLastLineBottomPadding,
   calculateCenteredScrollTop,
   createLyricsKey,
   createLyricsRequestKey,
@@ -291,6 +292,14 @@ describe('lyrics interaction rules', () => {
         maxScrollTop: 900,
       }),
     ).toBe(900);
+    expect(
+      calculateLastLineBottomPadding({
+        activeOffsetTop: 700,
+        activeHeight: 80,
+        containerHeight: 400,
+        contentHeight: 900,
+      }),
+    ).toBe(40);
   });
 
   test('recognizes playback reset only with complete timestamps', () => {
