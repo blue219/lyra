@@ -1,6 +1,6 @@
 # Privacy Policy for Lyra
 
-Last updated: August 9, 2026
+Last updated: August 10, 2026
 
 Lyra is a browser extension for Spotify Web Player that displays bilingual synced
 lyrics. This policy explains what data Lyra processes and how that data is used.
@@ -46,8 +46,10 @@ payment information to these services.
 Lyra uses browser local storage through `chrome.storage.local` to store:
 
 - Overlay settings.
-- Lyrics cache entries.
-- Cache summary data needed to show cached song count and estimated cache size.
+- Lyrics cache entries and their cache metadata.
+
+Cache summaries, including song and entry counts and estimated serialized size,
+are calculated on demand from those entries and are not stored separately.
 
 Users can clear Lyra's lyrics cache from the extension settings.
 

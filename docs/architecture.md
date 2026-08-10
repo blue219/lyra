@@ -9,9 +9,6 @@ Production code under `src/` follows one dependency direction:
 
 ```text
 domain <- ports <- application <- adapters <- ui
-                                      ^          ^
-                                      |          |
-                                  entrypoints compose dependencies
 ```
 
 - `domain` contains Track, Lyrics, Translation, Cache, cover palette, settings,
@@ -25,8 +22,10 @@ domain <- ports <- application <- adapters <- ui
   storage/runtime implementations.
 - `ui` renders controller state for the overlay and popup. UI code does not fetch
   lyrics, inspect Spotify DOM, or parse runtime messages directly.
-- `entrypoints` is the composition root for background, content gate, ESM content
-  UI, and popup runtimes.
+- `entrypoints` starts the background, content gate, ESM content UI, and popup
+  runtimes. The background entrypoint composes background services. The ESM and
+  popup entrypoints mount their UI roots, while those roots and their settings
+  hooks compose the controller and browser-facing adapters they use.
 
 There are no compatibility re-exports for the former `src/features` or
 `src/shared` paths.
@@ -57,7 +56,7 @@ Supported requests are:
 | ---------------------------- | --------------------------------------------------------------------- |
 | `lyra:fetchLyrics`           | Resolve LRCLIB fallback and optional translation for one track.       |
 | `lyra:translateLyrics`       | Translate Spotify-provided lines.                                     |
-| `lyra:getLyricsCacheSummary` | Read V2 song and entry counts.                                        |
+| `lyra:getLyricsCacheSummary` | Read V2 song/entry counts, capacity, and estimated serialized size.   |
 | `lyra:clearLyricsCache`      | Cancel active work, increment cache generation, and clear V2 entries. |
 | `lyra:resolveCoverPalette`   | Derive a safe Aurora palette from an allowed Spotify cover URL.       |
 
@@ -128,8 +127,9 @@ hydration. Each structured entry explicitly stores `songKey`, source, target
 language, result, optional expiry, and last-access time. Callers never parse a string key
 to derive metadata. Cache clear increments an in-memory generation and aborts
 active requests, so work started in an older generation cannot repopulate cache.
-The limit is 200 entries with LRU eviction. The UI reports unique song count and
-`entries/200` separately.
+The limit is 200 entries with LRU eviction. The runtime summary includes unique
+song and entry counts, capacity, and estimated serialized size. The current UI
+displays `entries/maxEntries` and the estimated size.
 
 Complete available results are kept locally without expiry until the user clears
 the cache or they are evicted by the 200-entry LRU limit. Confirmed unavailable

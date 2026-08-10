@@ -28,11 +28,23 @@ WXT listens on port `5173`. Load `.output/chrome-mv3-dev` from
 | `npm run test:coverage`  | Run V8 coverage and enforce global and core thresholds.                        |
 | `npm run build`          | Build the production extension.                                                |
 | `npm run check:manifest` | Validate the generated manifest contract.                                      |
-| `npm run check:bundle`   | Enforce loader, ESM UI gzip, and zip budgets.                                  |
+| `npm run check:bundle`   | After `npm run zip`, enforce loader, ESM UI gzip, and zip budgets.             |
 | `npm run test:e2e`       | Run Playwright against the production extension.                               |
 | `npm run zip`            | Build the distributable extension archive.                                     |
 | `npm run audit:high`     | Fail on high or critical dependency advisories.                                |
-| `npm run validate`       | Run the local non-browser validation sequence.                                 |
+| `npm run validate`       | Run formatting, lint, type, unit/coverage, build, and manifest checks.         |
+
+`npm run validate` does not run the extension E2E test, create or check the zip,
+or audit dependencies. Use this release-validation sequence when those checks are
+required:
+
+```bash
+npm run validate
+npm run zip
+npm run check:bundle
+npm run test:e2e
+npm run audit:high
+```
 
 ## Unit and contract tests
 
@@ -43,8 +55,9 @@ environment. Unexpected `console.error`, React warnings, and unhandled rejection
 fail tests.
 
 Browser lifecycle, GPU composition, and imperative DOM scrolling modules are
-excluded from unit coverage; their production behavior is exercised by the
-Playwright extension flow. Render components, settings UI, adapters, runtime
+excluded from unit coverage. The Playwright extension flow loads the relevant
+production paths, while real GPU animation and scrolling behavior remain part of
+the manual smoke test. Render components, settings UI, adapters, runtime
 validation, domain, and application logic remain in the global unit metric.
 
 Manifest tests lock permissions, Spotify matches, disabled action state, popup,
@@ -65,9 +78,10 @@ npx playwright install chromium
 `npm run test:e2e` uses one worker and a fresh persistent Chromium profile. It
 loads `.output/chrome-mv3`, opens an `open.spotify.com` URL, and fulfills the page
 with local DOM fixtures. Provider `fetch` calls are mocked at the extension
-service-worker boundary. Coverage includes the service worker, popup, content gate, overlay
-mount/unmount, ShadowRoot styles, settings persistence, runtime messages, cache
-clear, provider flows, and the rule that non-lyrics pages do not load the ESM UI.
+service-worker boundary. Assertions cover service-worker runtime messages, the
+popup, content-gate loading, overlay mount/unmount, ShadowRoot styles, settings
+persistence, cache clear, translation and LRCLIB provider flows, and the rule that
+non-lyrics pages do not load the ESM UI.
 
 ## Manual English Spotify smoke
 
@@ -83,7 +97,7 @@ Spotify Web Player:
 7. Translation degradation keeps originals visible with an inline reason.
 8. Target language, font size, and the Aurora motion preference survive reload.
 9. A forced setting/cache failure shows a recoverable inline message.
-10. Cache UI shows unique songs and entries out of 200; clear removes both.
+10. Cache UI shows entries out of 200 and estimated size; clear resets both.
 11. On a song with an `i.scdn.co` cover, the lyrics background changes to a
     derived palette once per cover URL; quick track changes do not apply a stale
     palette, and unsupported or low-color covers fall back silently.
