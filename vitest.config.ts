@@ -9,7 +9,7 @@ export default defineConfig({
     },
   },
   define: {
-    __LYRA_VERSION__: JSON.stringify('0.8.0'),
+    __LYRA_VERSION__: JSON.stringify('1.0.0'),
   },
   plugins: [tailwindcss()],
   test: {
