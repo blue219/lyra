@@ -64,6 +64,8 @@ describe('SettingsEntry', () => {
     expect(html).toContain('Dynamic');
     expect(html).toContain('Cache');
     expect(html).toContain('>Lyra<');
+    expect(html).toContain('Copy contact email address');
+    expect(html).toContain('lantianisbluesky@gmail.com');
     expect(html).toContain('Open Lyra on GitHub');
     expect(html).toContain('https://github.com/blue219/lyra');
     expect(html).toContain('14/200');

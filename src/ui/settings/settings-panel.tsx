@@ -1,3 +1,5 @@
+import { useEffect, useRef, useState } from 'react';
+
 import { supportedLanguages } from '@/src/domain/languages';
 import type { CacheSummary, OverlaySettings } from '@/src/domain/model';
 
@@ -18,6 +20,8 @@ const languageOptions = supportedLanguages.map(({ value, label }) => ({
   label,
 }));
 
+const contactEmail = 'lantianisbluesky@gmail.com';
+
 export function SettingsPanel({
   cacheSummary,
   isCachePending,
@@ -30,6 +34,34 @@ export function SettingsPanel({
   variant = 'overlay',
 }: SettingsPanelProps) {
   const isPopup = variant === 'popup';
+  const [didCopyEmail, setDidCopyEmail] = useState(false);
+  const copiedMessageTimeout = useRef<number | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (copiedMessageTimeout.current !== null) {
+        window.clearTimeout(copiedMessageTimeout.current);
+      }
+    };
+  }, []);
+
+  async function copyContactEmail() {
+    try {
+      await navigator.clipboard.writeText(contactEmail);
+    } catch {
+      return;
+    }
+
+    if (copiedMessageTimeout.current !== null) {
+      window.clearTimeout(copiedMessageTimeout.current);
+    }
+
+    setDidCopyEmail(true);
+    copiedMessageTimeout.current = window.setTimeout(() => {
+      setDidCopyEmail(false);
+      copiedMessageTimeout.current = null;
+    }, 1600);
+  }
 
   return (
     <section
@@ -44,23 +76,91 @@ export function SettingsPanel({
         <h2 className="text-[1.25rem] font-bold tracking-[-0.03em] text-white">
           Lyra
         </h2>
-        <a
-          aria-label="Open Lyra on GitHub"
-          className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-full border border-white/20 text-white transition hover:border-white/50 hover:bg-white/10"
-          href="https://github.com/blue219/lyra"
-          rel="noreferrer"
-          target="_blank"
-        >
-          <svg
-            aria-hidden="true"
-            className="h-6 w-6"
-            viewBox="0 0 24 24"
-            fill="currentColor"
-            xmlns="http://www.w3.org/2000/svg"
+        <div className="flex items-center gap-2">
+          <div className="group relative">
+            <button
+              aria-label="Copy contact email address"
+              className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-full border border-white/20 text-white transition hover:border-white/50 hover:bg-white/10"
+              type="button"
+              onClick={copyContactEmail}
+            >
+              <span className="relative block h-[18px] w-[18px]">
+                <svg
+                  aria-hidden="true"
+                  className="absolute inset-0 h-[18px] w-[18px] transition-opacity duration-200 ease-out group-hover:opacity-0 group-focus-within:opacity-0"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <path
+                    d="M3.5 6.5C3.5 5.67 4.17 5 5 5H19C19.83 5 20.5 5.67 20.5 6.5V17.5C20.5 18.33 19.83 19 19 19H5C4.17 19 3.5 18.33 3.5 17.5V6.5Z"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                    strokeLinejoin="round"
+                  />
+                  <path
+                    d="M4.5 6L12 12L19.5 6"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+                <svg
+                  aria-hidden="true"
+                  className="absolute inset-0 h-[18px] w-[18px] opacity-0 transition-opacity duration-200 ease-out group-hover:opacity-100 group-focus-within:opacity-100"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <rect
+                    x="8"
+                    y="8"
+                    width="11"
+                    height="11"
+                    rx="1.5"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                  />
+                  <path
+                    d="M16 8V5.5C16 4.67 15.33 4 14.5 4H5.5C4.67 4 4 4.67 4 5.5V14.5C4 15.33 4.67 16 5.5 16H8"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                    strokeLinecap="round"
+                  />
+                </svg>
+              </span>
+            </button>
+            <span
+              className={[
+                'pointer-events-none absolute top-full right-0 z-10 mt-2 whitespace-nowrap rounded-md bg-black px-2 py-1 text-[0.7rem] font-medium text-white shadow-[0_4px_12px_rgba(0,0,0,0.35)] transition-opacity',
+                didCopyEmail
+                  ? 'opacity-100'
+                  : 'opacity-0 group-hover:opacity-100 group-focus-within:opacity-100',
+              ].join(' ')}
+              role="status"
+            >
+              {didCopyEmail ? 'Copied' : contactEmail}
+            </span>
+          </div>
+          <a
+            aria-label="Open Lyra on GitHub"
+            className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-full border border-white/20 text-white transition hover:border-white/50 hover:bg-white/10"
+            href="https://github.com/blue219/lyra"
+            rel="noreferrer"
+            target="_blank"
           >
-            <path d="M12 2C6.48 2 2 6.58 2 12.24c0 4.53 2.87 8.36 6.84 9.72.5.1.68-.22.68-.49 0-.24-.01-1.05-.01-1.91-2.78.62-3.37-1.2-3.37-1.2-.45-1.18-1.11-1.49-1.11-1.49-.91-.64.06-.63.06-.63 1 .08 1.53 1.05 1.53 1.05.9 1.57 2.35 1.12 2.92.86.09-.67.35-1.12.64-1.38-2.22-.26-4.56-1.15-4.56-5.1 0-1.13.39-2.05 1.03-2.78-.1-.26-.45-1.32.1-2.75 0 0 .84-.28 2.75 1.06A9.23 9.23 0 0 1 12 6.45c.85 0 1.71.12 2.51.35 1.91-1.34 2.75-1.06 2.75-1.06.55 1.43.2 2.49.1 2.75.64.73 1.03 1.65 1.03 2.78 0 3.96-2.35 4.84-4.58 5.1.36.32.68.94.68 1.9 0 1.38-.01 2.49-.01 2.83 0 .27.18.59.69.49A10.26 10.26 0 0 0 22 12.24C22 6.58 17.52 2 12 2Z" />
-          </svg>
-        </a>
+            <svg
+              aria-hidden="true"
+              className="h-6 w-6"
+              viewBox="0 0 24 24"
+              fill="currentColor"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path d="M12 2C6.48 2 2 6.58 2 12.24c0 4.53 2.87 8.36 6.84 9.72.5.1.68-.22.68-.49 0-.24-.01-1.05-.01-1.91-2.78.62-3.37-1.2-3.37-1.2-.45-1.18-1.11-1.49-1.11-1.49-.91-.64.06-.63.06-.63 1 .08 1.53 1.05 1.53 1.05.9 1.57 2.35 1.12 2.92.86.09-.67.35-1.12.64-1.38-2.22-.26-4.56-1.15-4.56-5.1 0-1.13.39-2.05 1.03-2.78-.1-.26-.45-1.32.1-2.75 0 0 .84-.28 2.75 1.06A9.23 9.23 0 0 1 12 6.45c.85 0 1.71.12 2.51.35 1.91-1.34 2.75-1.06 2.75-1.06.55 1.43.2 2.49.1 2.75.64.73 1.03 1.65 1.03 2.78 0 3.96-2.35 4.84-4.58 5.1.36.32.68.94.68 1.9 0 1.38-.01 2.49-.01 2.83 0 .27.18.59.69.49A10.26 10.26 0 0 0 22 12.24C22 6.58 17.52 2 12 2Z" />
+            </svg>
+          </a>
+        </div>
       </header>
       {errorMessage ? (
         <div
