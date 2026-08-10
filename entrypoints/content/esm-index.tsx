@@ -1,14 +1,18 @@
 import ReactDOM from 'react-dom/client';
 import { createShadowRootUi } from 'wxt/utils/content-script-ui/shadow-root';
 import type { ContentScriptContext } from 'wxt/utils/content-script-context';
+import replacementLyricsFontStyles from './replacement-lyrics-fonts.css?inline';
 
 import { ContentApp } from '@/src/ui/overlay/content-app';
 import { removeLegacyInlineLyrics } from '@/src/ui/overlay/legacy-cleanup';
 import './style.css';
 
+const replacementLyricsFontStylesAttribute = 'replacement-lyrics-font-styles';
+
 export default async (ctx: ContentScriptContext) => {
   removeLegacyInlineLyrics(document);
   injectNativeLyricsOverride();
+  injectReplacementLyricsFontStyles();
 
   const stylesText = await fetch(
     browser.runtime.getURL('/content-scripts/esm/content.css' as never),
@@ -37,6 +41,11 @@ export default async (ctx: ContentScriptContext) => {
     remove() {
       ui.remove();
       document
+        .querySelector(
+          `style[data-lyra="${replacementLyricsFontStylesAttribute}"]`,
+        )
+        ?.remove();
+      document
         .querySelectorAll('[data-lyra-native-lyrics-hidden="true"]')
         .forEach((element) =>
           element.removeAttribute('data-lyra-native-lyrics-hidden'),
@@ -44,6 +53,20 @@ export default async (ctx: ContentScriptContext) => {
     },
   };
 };
+
+function injectReplacementLyricsFontStyles(): void {
+  if (
+    document.querySelector(
+      `style[data-lyra="${replacementLyricsFontStylesAttribute}"]`,
+    )
+  )
+    return;
+
+  const style = document.createElement('style');
+  style.dataset.lyra = replacementLyricsFontStylesAttribute;
+  style.textContent = replacementLyricsFontStyles;
+  document.head.append(style);
+}
 
 function injectNativeLyricsOverride(): void {
   if (document.querySelector('[data-lyra="native-lyrics-override"]')) return;

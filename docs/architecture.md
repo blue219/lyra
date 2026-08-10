@@ -96,6 +96,11 @@ background setting is enabled. Cover colors always update the static background;
 the setting controls Aurora motion only. Normal application `import()` is not
 used as a content-script splitting mechanism.
 
+Replacement lyrics are rendered through a React portal into Spotify's lyrics
+container. Their scoped multi-script font rules are injected separately into the
+document head and removed when the ESM UI unmounts, so they apply outside the
+ShadowRoot without exposing the rest of Lyra's CSS to Spotify.
+
 ## External adapters
 
 - Spotify DOM: stable `data-testid` selectors are preferred. English text is an

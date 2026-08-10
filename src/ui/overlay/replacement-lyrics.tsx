@@ -152,6 +152,7 @@ export function ReplacementLyrics({
           line,
           targetLanguage,
         );
+        const translationLanguage = line.translatedLanguage ?? targetLanguage;
         const isActive = index === activeLineIndex;
 
         return (
@@ -195,12 +196,13 @@ export function ReplacementLyrics({
             {translatedText ? (
               <p
                 className="lyra-replacement-translation"
+                lang={translationLanguage}
                 style={{
                   color: isActive
                     ? activeAccentColor
                     : 'rgba(255, 255, 255, 0.65)',
                   fontSize: translationFontSizes[fontSize],
-                  fontWeight: 600,
+                  fontWeight: 'var(--lyra-translation-font-weight)',
                   lineHeight: 1.35,
                   margin: '12px 0 0',
                 }}

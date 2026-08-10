@@ -1,0 +1,35 @@
+.lyra-replacement-translation {
+  --lyra-translation-font-weight: 600;
+}
+
+/* The replacement lyrics are portalled into Spotify's document, outside Lyra's ShadowRoot. */
+.lyra-replacement-translation[lang|='zh'] {
+  --lyra-translation-font-weight: 500;
+  font-family:
+    'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei UI', 'Microsoft YaHei',
+    'Noto Sans CJK SC', 'Noto Sans SC', sans-serif;
+  font-synthesis: none;
+}
+
+.lyra-replacement-translation[lang='zh-TW'],
+.lyra-replacement-translation[lang='zh-Hant'] {
+  font-family:
+    'PingFang TC', 'Microsoft JhengHei UI', 'Microsoft JhengHei',
+    'Noto Sans CJK TC', 'Noto Sans TC', sans-serif;
+}
+
+.lyra-replacement-translation[lang|='ja'] {
+  --lyra-translation-font-weight: 500;
+  font-family:
+    'Hiragino Sans', 'Yu Gothic UI', 'Yu Gothic', Meiryo, 'Noto Sans CJK JP',
+    'Noto Sans JP', sans-serif;
+  font-synthesis: none;
+}
+
+.lyra-replacement-translation[lang|='ko'] {
+  --lyra-translation-font-weight: 500;
+  font-family:
+    'Apple SD Gothic Neo', 'Malgun Gothic', 'Noto Sans CJK KR', 'Noto Sans KR',
+    sans-serif;
+  font-synthesis: none;
+}

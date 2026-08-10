@@ -151,6 +151,7 @@ test('production extension flow', async () => {
     expect(shadowHasStyles).toBe(true);
 
     await expect(page.getByText('Bonjour')).toBeVisible();
+    await expect(page.getByText('Bonjour')).toHaveCSS('font-weight', '600');
     await page.getByRole('button', { name: 'Open Lyra settings' }).click();
     const dynamicBackgroundToggle = page.getByRole('switch', {
       name: 'Toggle dynamic background',
