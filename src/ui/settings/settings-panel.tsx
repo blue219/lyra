@@ -84,10 +84,10 @@ export function SettingsPanel({
               type="button"
               onClick={copyContactEmail}
             >
-              <span className="relative block h-[18px] w-[18px]">
+              <span className="relative block h-6 w-6">
                 <svg
                   aria-hidden="true"
-                  className="absolute inset-0 h-[18px] w-[18px] transition-opacity duration-200 ease-out group-hover:opacity-0 group-focus-within:opacity-0"
+                  className="absolute inset-0 h-6 w-6 transition-opacity duration-200 ease-out group-hover:opacity-0 group-focus-within:opacity-0"
                   viewBox="0 0 24 24"
                   fill="none"
                   xmlns="http://www.w3.org/2000/svg"
@@ -108,7 +108,7 @@ export function SettingsPanel({
                 </svg>
                 <svg
                   aria-hidden="true"
-                  className="absolute inset-0 h-[18px] w-[18px] opacity-0 transition-opacity duration-200 ease-out group-hover:opacity-100 group-focus-within:opacity-100"
+                  className="absolute inset-0 h-6 w-6 opacity-0 transition-opacity duration-200 ease-out group-hover:opacity-100 group-focus-within:opacity-100"
                   viewBox="0 0 24 24"
                   fill="none"
                   xmlns="http://www.w3.org/2000/svg"

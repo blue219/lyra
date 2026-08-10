@@ -1,7 +1,9 @@
 // @vitest-environment jsdom
 
+import { act } from 'react';
+import { createRoot } from 'react-dom/client';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { describe, expect, test } from 'vitest';
+import { describe, expect, test, vi } from 'vitest';
 
 import { SettingsEntry, getSettingsEntryStyle } from './settings-entry';
 import type { CacheSummary, OverlaySettings } from '@/src/domain/model';
@@ -68,6 +70,7 @@ describe('SettingsEntry', () => {
     expect(html).toContain('lantianisbluesky@gmail.com');
     expect(html).toContain('Open Lyra on GitHub');
     expect(html).toContain('https://github.com/blue219/lyra');
+    expect((html.match(/h-6 w-6/g) ?? []).length).toBeGreaterThanOrEqual(3);
     expect(html).toContain('14/200');
     expect(html).toContain('3.5 KB');
     expect(html).toContain('Clear');
@@ -97,6 +100,56 @@ describe('SettingsEntry', () => {
     expect(html).not.toContain(
       'Falls back to static when motion should be reduced.',
     );
+  });
+
+  test('closes the popover only when the pointer moves outside it', () => {
+    const onOpenChange = vi.fn();
+    const container = document.createElement('div');
+    document.body.append(container);
+    const root = createRoot(container);
+
+    act(() => {
+      root.render(
+        <SettingsEntry
+          anchor={null}
+          isOpen
+          settings={settings}
+          cacheSummary={cacheSummary}
+          isCachePending={false}
+          isClearingCache={false}
+          onOpenChange={onOpenChange}
+          onSettingsChange={() => undefined}
+          onClearCache={() => undefined}
+        />,
+      );
+    });
+
+    const panel = container.querySelector('section');
+    act(() => {
+      panel?.dispatchEvent(
+        new MouseEvent('pointerdown', { bubbles: true, composed: true }),
+      );
+    });
+    expect(onOpenChange).not.toHaveBeenCalled();
+
+    const positioningContainer = container.firstElementChild;
+    act(() => {
+      positioningContainer?.dispatchEvent(
+        new MouseEvent('pointerdown', { bubbles: true, composed: true }),
+      );
+    });
+    expect(onOpenChange).toHaveBeenCalledWith(false);
+
+    onOpenChange.mockClear();
+    act(() => {
+      document.body.dispatchEvent(
+        new MouseEvent('pointerdown', { bubbles: true, composed: true }),
+      );
+    });
+    expect(onOpenChange).toHaveBeenCalledWith(false);
+
+    act(() => root.unmount());
+    container.remove();
   });
 
   test('renders the dynamic background switch as off when disabled', () => {

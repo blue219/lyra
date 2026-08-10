@@ -1,4 +1,4 @@
-import type { CSSProperties } from 'react';
+import { useEffect, useRef, type CSSProperties } from 'react';
 
 import settingsIconUrl from '../../assets/branding/toolbar/lyra-toolbar-green-transparent.png';
 import { SettingsPanel } from '@/src/ui/settings/settings-panel';
@@ -36,6 +36,32 @@ export function SettingsEntry({
   errorMessage,
   onRetry,
 }: SettingsEntryProps) {
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!isOpen) {
+      return;
+    }
+
+    const closeOnOutsidePointerDown = (event: PointerEvent) => {
+      const eventPath = event.composedPath();
+
+      if (
+        (triggerRef.current && eventPath.includes(triggerRef.current)) ||
+        (panelRef.current && eventPath.includes(panelRef.current))
+      ) {
+        return;
+      }
+
+      onOpenChange(false);
+    };
+
+    document.addEventListener('pointerdown', closeOnOutsidePointerDown);
+    return () =>
+      document.removeEventListener('pointerdown', closeOnOutsidePointerDown);
+  }, [isOpen, onOpenChange]);
+
   return (
     <div
       className="fixed z-[2147483647] flex flex-col items-end pr-[10px] font-[var(--lyra-font-ui)] text-[var(--lyra-color-text)]"
@@ -47,6 +73,7 @@ export function SettingsEntry({
           'flex h-10 w-10 cursor-pointer items-center justify-center rounded-full border border-white/10 bg-[rgba(18,18,18,0.72)] p-1 text-[var(--lyra-color-accent)] antialiased shadow-[0_0_0_1px_rgba(255,255,255,0.04),0_6px_18px_rgba(0,0,0,0.26)] transition hover:border-[var(--lyra-color-accent)]/35 hover:bg-[rgba(18,18,18,0.86)] hover:shadow-[0_0_0_1px_rgba(255,255,255,0.06),0_8px_22px_rgba(0,0,0,0.32)]',
           isOpen ? 'ring-2 ring-[var(--lyra-color-accent)]/30' : '',
         ].join(' ')}
+        ref={triggerRef}
         type="button"
         onClick={() => onOpenChange(!isOpen)}
       >
@@ -59,7 +86,7 @@ export function SettingsEntry({
       </button>
 
       {isOpen ? (
-        <div className="relative mt-3 w-[min(88vw,274px)]">
+        <div className="relative mt-3 w-[min(88vw,274px)]" ref={panelRef}>
           <div
             aria-hidden="true"
             data-lyra-settings-notch="true"
