@@ -83,14 +83,14 @@ function injectNativeLyricsOverride(): void {
     }
     .lyra-replacement-host { position: relative; z-index: 3; width: 100%; color: #fff; }
     :root { --lyra-cinema-toolbar-height: 64px; }
-    :root[data-lyra-cinema-toolbar-hidden],
     :fullscreen { --lyra-cinema-toolbar-height: 0px; }
-    /* Keep Lyra below the cinema toolbar and outside Spotify's native scroller. */
+    /* Spotify fades its toolbar over the lyrics without resizing the viewport. */
     ${spotifyCinemaScrollHostSelector} > .lyra-replacement-host {
       position: absolute;
-      inset: var(--lyra-cinema-toolbar-height) 0 0;
+      inset: 0;
       container-type: size;
       --lyra-viewport-height: 100cqh;
+      --lyra-lyrics-loading-top: max(24px, var(--lyra-cinema-toolbar-height));
     }
     /* Preserve the native layout and events that provide playback synchronization. */
     ${spotifyCinemaScrollHostSelector} > .lyra-replacement-host ~ :is([data-overlayscrollbars-viewport], .os-scrollbar) {

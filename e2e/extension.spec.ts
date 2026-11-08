@@ -251,7 +251,7 @@ test('production extension flow', async () => {
       ':scope > [data-lyra-replacement-host] > [data-lyra-replacement-scroll]',
     );
     await expect(lyricsFrame).toBeVisible();
-    await expect(lyricsFrame).toHaveCSS('height', '336px');
+    await expect(lyricsFrame).toHaveCSS('height', '400px');
     await expect(cinema.locator('[data-overlayscrollbars-viewport]')).toHaveCSS(
       'opacity',
       '0',
@@ -267,10 +267,13 @@ test('production extension flow', async () => {
     await expect(cinema).toHaveAttribute('data-seeked', 'World');
 
     const cinemaToolbar = page.locator('#cinema-toolbar');
+    const visibleFrame = await lyricsFrame.boundingBox();
     await cinemaToolbar.evaluate((toolbar) => (toolbar.style.opacity = '0'));
-    await expect(lyricsFrame).toHaveCSS('height', '400px');
+    await expect(cinemaToolbar).toHaveCSS('opacity', '0');
+    expect(await lyricsFrame.boundingBox()).toEqual(visibleFrame);
     await cinemaToolbar.evaluate((toolbar) => (toolbar.style.opacity = '1'));
-    await expect(lyricsFrame).toHaveCSS('height', '336px');
+    await expect(cinemaToolbar).toHaveCSS('opacity', '1');
+    expect(await lyricsFrame.boundingBox()).toEqual(visibleFrame);
 
     await page.evaluate(() => {
       const fullscreen = document.createElement('button');
@@ -289,11 +292,11 @@ test('production extension flow', async () => {
     await cinemaSettings.click();
 
     await page.evaluate(() => document.exitFullscreen());
-    await expect(lyricsFrame).toHaveCSS('height', '336px');
+    await expect(lyricsFrame).toHaveCSS('height', '400px');
 
     await page.setViewportSize({ width: 390, height: 700 });
     await expect(lyricsFrame).toHaveCSS('width', '374px');
-    await expect(lyricsFrame).toHaveCSS('height', '336px');
+    await expect(lyricsFrame).toHaveCSS('height', '400px');
 
     await cinema.evaluate((element) => element.remove());
     await expect(page.locator('lyra-overlay')).toHaveCount(0);

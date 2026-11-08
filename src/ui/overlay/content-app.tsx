@@ -34,7 +34,6 @@ import { removeLegacyInlineLyrics } from './legacy-cleanup';
 import { ReplacementLyrics } from './replacement-lyrics';
 import {
   ensureReplacementHost,
-  observeCinemaToolbar,
   removeReplacementHosts,
 } from './replacement-host';
 import {
@@ -129,9 +128,6 @@ export function ContentApp() {
       return;
     }
     setReplacementHost(ensureReplacementHost(document, lyricsContainer));
-    if (lyricsContainer.matches(spotifyCinemaScrollHostSelector)) {
-      return observeCinemaToolbar(lyricsContainer);
-    }
   }, [lyricsContainer]);
 
   useEffect(() => {

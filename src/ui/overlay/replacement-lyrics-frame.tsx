@@ -18,7 +18,7 @@ export const loadingSkeletonGroupCount = 5;
 export const lyricsContentMaxWidth = '1024px';
 export const lyricsHorizontalPadding = 'clamp(20px, 4vw, 48px)';
 export const defaultLyricsPadding = `64px ${lyricsHorizontalPadding} 0`;
-export const loadingLyricsPadding = `24px ${lyricsHorizontalPadding} 64px`;
+export const loadingLyricsPadding = `var(--lyra-lyrics-loading-top, 24px) ${lyricsHorizontalPadding} 64px`;
 export const skeletonOriginalWidth = '66.6667%';
 export const skeletonTranslationWidth = '33.3333%';
 
