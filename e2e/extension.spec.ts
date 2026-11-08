@@ -224,7 +224,8 @@ test('production extension flow', async () => {
     await page.evaluate(() => {
       document.body.insertAdjacentHTML(
         'beforeend',
-        `<div id="cinema" data-overlayscrollbars="host" style="position: relative; overflow: hidden; width: 100%; height: 400px">
+        `<div id="cinema-toolbar" style="--header-text-color: white; position: absolute; transition: opacity 100ms">Toolbar</div>
+        <div id="cinema" data-overlayscrollbars="host" style="position: relative; overflow: hidden; width: 100%; height: 400px">
           <div data-overlayscrollbars-viewport style="height: 100%; overflow-y: scroll">
             <div style="--cinema-mode-bg-color-from: #121212">
               <div style="--lyrics-color-background: #121212; padding-top: 200px; height: 900px">
@@ -264,6 +265,12 @@ test('production extension flow', async () => {
     await expect(world).toHaveAttribute('data-lyra-replacement-active', 'true');
     await world.click();
     await expect(cinema).toHaveAttribute('data-seeked', 'World');
+
+    const cinemaToolbar = page.locator('#cinema-toolbar');
+    await cinemaToolbar.evaluate((toolbar) => (toolbar.style.opacity = '0'));
+    await expect(lyricsFrame).toHaveCSS('height', '400px');
+    await cinemaToolbar.evaluate((toolbar) => (toolbar.style.opacity = '1'));
+    await expect(lyricsFrame).toHaveCSS('height', '336px');
 
     await page.evaluate(() => {
       const fullscreen = document.createElement('button');

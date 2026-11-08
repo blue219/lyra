@@ -32,13 +32,16 @@ import {
 } from '@/src/application/lyrics-flow';
 import { removeLegacyInlineLyrics } from './legacy-cleanup';
 import { ReplacementLyrics } from './replacement-lyrics';
-import { removeReplacementHosts } from './replacement-host';
+import {
+  ensureReplacementHost,
+  observeCinemaToolbar,
+  removeReplacementHosts,
+} from './replacement-host';
 import {
   keepReplacementLyricsInView,
   useReplacementAutoScroll,
 } from './replacement-scroll';
 import { SettingsEntry } from './settings-entry';
-import { ensureReplacementHost } from './replacement-host';
 import { readSettingsAnchor } from './settings-entry';
 
 export { shouldMountLyricsExperience } from './replacement-host';
@@ -126,6 +129,9 @@ export function ContentApp() {
       return;
     }
     setReplacementHost(ensureReplacementHost(document, lyricsContainer));
+    if (lyricsContainer.matches(spotifyCinemaScrollHostSelector)) {
+      return observeCinemaToolbar(lyricsContainer);
+    }
   }, [lyricsContainer]);
 
   useEffect(() => {

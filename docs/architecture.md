@@ -98,12 +98,12 @@ used as a content-script splitting mechanism.
 
 Replacement lyrics are rendered through a React portal into Spotify's lyrics
 container. In expanded Now Playing, the portal mounts beside Spotify's native
-scroller. Lyra reserves space for the toolbar in expanded view and fills the
-entire panel in native fullscreen. Spotify's original rows supply timing and
-seek events while Lyra handles its own scrolling. The scoped multi-script font
-rules are injected separately into the document head and removed when the ESM UI
-unmounts, so they apply outside the ShadowRoot without exposing the rest of
-Lyra's CSS to Spotify.
+scroller. Lyra reserves space while the toolbar is visible and fills the panel
+when the toolbar auto-hides or native fullscreen starts. Spotify's original
+rows supply timing and seek events while Lyra handles its own scrolling. The
+scoped multi-script font rules are injected separately into the document head
+and removed when the ESM UI unmounts, so they apply outside the ShadowRoot
+without exposing the rest of Lyra's CSS to Spotify.
 
 ## External adapters
 
