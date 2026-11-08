@@ -102,9 +102,8 @@ export function ContentApp() {
     lyricsContainer,
   } = controllerState;
   const settingsAnchor = readSettingsAnchor(
-    lyricsContainer?.matches(spotifyCinemaScrollHostSelector)
-      ? replacementHost
-      : lyricsContainer,
+    lyricsContainer,
+    lyricsContainer?.matches(spotifyCinemaScrollHostSelector),
   );
   const activeLineIndex = getVisibleActiveLineIndex({
     selectedLineIndex: getSelectedLineIndex(selectedLineState),

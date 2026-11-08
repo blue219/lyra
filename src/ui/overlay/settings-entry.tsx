@@ -6,7 +6,7 @@ import type { CacheSummary, OverlaySettings } from '@/src/domain/model';
 
 export interface SettingsAnchor {
   right: number;
-  top: number;
+  top: number | string;
 }
 
 interface SettingsEntryProps {
@@ -111,6 +111,7 @@ export function SettingsEntry({
 
 export function readSettingsAnchor(
   container: HTMLElement | null,
+  reserveCinemaToolbar = false,
 ): SettingsAnchor | null {
   if (!container) {
     return null;
@@ -122,9 +123,12 @@ export function readSettingsAnchor(
     return null;
   }
 
+  const top = Math.max(16, rect.top + 16);
   return {
     right: Math.max(16, window.innerWidth - rect.right + 16),
-    top: Math.max(16, rect.top + 16),
+    top: reserveCinemaToolbar
+      ? `calc(${top}px + var(--lyra-cinema-toolbar-height))`
+      : top,
   };
 }
 

@@ -265,6 +265,25 @@ test('production extension flow', async () => {
     await world.click();
     await expect(cinema).toHaveAttribute('data-seeked', 'World');
 
+    await page.evaluate(() => {
+      const fullscreen = document.createElement('button');
+      fullscreen.textContent = 'Enter cinema fullscreen';
+      fullscreen.onclick = () => void document.body.requestFullscreen();
+      document.body.prepend(fullscreen);
+    });
+    await page.getByRole('button', { name: 'Enter cinema fullscreen' }).click();
+    await expect(page.locator('body:fullscreen')).toBeAttached();
+    await expect(lyricsFrame).toHaveCSS('height', '400px');
+    const cinemaSettings = page.getByRole('button', {
+      name: 'Open Lyra settings',
+    });
+    await cinemaSettings.click();
+    await expect(dynamicBackgroundToggle).toBeVisible();
+    await cinemaSettings.click();
+
+    await page.evaluate(() => document.exitFullscreen());
+    await expect(lyricsFrame).toHaveCSS('height', '336px');
+
     await page.setViewportSize({ width: 390, height: 700 });
     await expect(lyricsFrame).toHaveCSS('width', '374px');
     await expect(lyricsFrame).toHaveCSS('height', '336px');

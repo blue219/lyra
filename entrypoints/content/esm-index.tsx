@@ -82,10 +82,12 @@ function injectNativeLyricsOverride(): void {
       text-shadow: none !important;
     }
     .lyra-replacement-host { position: relative; z-index: 3; width: 100%; color: #fff; }
+    :root { --lyra-cinema-toolbar-height: 64px; }
+    :fullscreen { --lyra-cinema-toolbar-height: 0px; }
     /* Keep Lyra below the cinema toolbar and outside Spotify's native scroller. */
     ${spotifyCinemaScrollHostSelector} > .lyra-replacement-host {
       position: absolute;
-      inset: 64px 0 0;
+      inset: var(--lyra-cinema-toolbar-height) 0 0;
       container-type: size;
       --lyra-viewport-height: 100cqh;
     }
