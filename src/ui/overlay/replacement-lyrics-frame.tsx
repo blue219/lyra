@@ -23,7 +23,6 @@ export const skeletonOriginalWidth = '66.6667%';
 export const skeletonTranslationWidth = '33.3333%';
 
 const replacementViewportHeight = 'calc(100vh - 96px)';
-const replacementViewportNegativeMargin = 'calc(-1 * (100vh - 96px))';
 const spotifyPlayerSelector = '[data-testid="now-playing-bar"]';
 const coverPaletteTransitionMs = 350;
 const skeletonHighlightGradient =
@@ -204,10 +203,7 @@ export function ReplacementLyricsFrame({
   const [viewportHeight, setViewportHeight] = useState(
     replacementViewportHeight,
   );
-  const viewportNegativeMargin =
-    viewportHeight === replacementViewportHeight
-      ? replacementViewportNegativeMargin
-      : `-${viewportHeight}`;
+  const frameHeight = `var(--lyra-viewport-height, ${viewportHeight})`;
 
   useLayoutEffect(() => {
     const frame = frameRef.current;
@@ -256,7 +252,7 @@ export function ReplacementLyricsFrame({
         backgroundColor: '#121212',
         boxSizing: 'border-box',
         color: '#ffffff',
-        height: viewportHeight,
+        height: frameHeight,
         overflowX: 'hidden',
         overflowY: 'auto',
         position: 'relative',
@@ -274,8 +270,7 @@ export function ReplacementLyricsFrame({
       <AuroraLayer
         colorStops={displayedCoverPalette}
         dynamicBackground={dynamicBackground}
-        viewportHeight={viewportHeight}
-        viewportNegativeMargin={viewportNegativeMargin}
+        viewportHeight={frameHeight}
       />
       <div
         data-lyra-aurora-shell="true"
@@ -311,12 +306,10 @@ function AuroraLayer({
   colorStops,
   dynamicBackground,
   viewportHeight,
-  viewportNegativeMargin,
 }: {
   colorStops: CoverPalette;
   dynamicBackground: boolean;
   viewportHeight: string;
-  viewportNegativeMargin: string;
 }) {
   const [light, middle, dark] = colorStops;
   return (
@@ -325,7 +318,7 @@ function AuroraLayer({
       data-lyra-aurora="true"
       style={{
         height: viewportHeight,
-        marginBottom: viewportNegativeMargin,
+        marginBottom: `calc(-1 * ${viewportHeight})`,
         overflow: 'hidden',
         pointerEvents: 'none',
         position: 'sticky',

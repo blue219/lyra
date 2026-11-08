@@ -24,11 +24,31 @@ const trackScopeSelectors = [
   '[data-testid="entity-details"]',
 ];
 
-const spotifyLyricsLineSelectors = [
-  '[data-testid="lyrics-line"]',
-  '[data-lyric-index]',
-];
+const spotifyLyricsLineSelector =
+  '[data-testid="lyrics-line"], [data-lyric-index]';
+const lyricsPreviewSelector = '[data-testid="lyrics-npv-section"]';
+const cinemaLyricsSelector =
+  '[style*="--cinema-mode-bg-color-from:"] [style*="--lyrics-color-background:"]';
+export const spotifyCinemaScrollHostSelector =
+  '[data-overlayscrollbars="host"]';
 const nativeLyricsHiddenAttribute = 'data-lyra-native-lyrics-hidden';
+
+export function findSpotifyAppRoot(rootDocument: Document = document) {
+  // The expanded Now Playing view and playback bar sit outside <main>.
+  return (
+    rootDocument.querySelector('[data-testid="root"]') ?? rootDocument.body
+  );
+}
+
+export function hasSpotifyLyricsSurface(rootDocument: Document = document) {
+  return (
+    isSpotifyLyricsPage(rootDocument.URL) ||
+    Boolean(rootDocument.querySelector(cinemaLyricsSelector)) ||
+    Array.from(rootDocument.querySelectorAll(spotifyLyricsLineSelector)).some(
+      (element) => !element.closest(`${lyricsPreviewSelector}, [inert]`),
+    )
+  );
+}
 
 export interface SpotifyLyricsSnapshot {
   lines: LyricLine[];
@@ -52,15 +72,16 @@ export function createSpotifyDomAdapter(
         track: readCurrentTrackIdentity(rootDocument),
         coverImageUrl: readCurrentCoverImageUrl(rootDocument),
         hasUnsyncedLyrics: hasUnsyncedSpotifyLyricsNotice(rootDocument),
-        lyricsContainer: readSpotifyLyricsPageContainer(rootDocument),
+        lyricsContainer: hasSpotifyLyricsSurface(rootDocument)
+          ? readSpotifyLyricsPageContainer(rootDocument)
+          : null,
       };
     },
     readPlaybackPositionMs: () => readPlaybackPositionMs(rootDocument),
     isDocumentVisible: () => rootDocument.visibilityState !== 'hidden',
     observe(listener) {
       const observer = new MutationObserver(listener);
-      const main = rootDocument.querySelector('main') ?? rootDocument.body;
-      observer.observe(main, {
+      observer.observe(findSpotifyAppRoot(rootDocument), {
         attributes: true,
         attributeFilter: ['class', 'aria-current', 'src', 'srcset'],
         childList: true,
@@ -187,11 +208,13 @@ export function hasUnsyncedSpotifyLyricsNotice(
 export function readVisibleSpotifyLyricElements(
   rootDocument: Document = document,
 ): HTMLElement[] {
-  return uniqueElements(
-    spotifyLyricsLineSelectors.flatMap((selector) =>
-      Array.from(rootDocument.querySelectorAll<HTMLElement>(selector)),
-    ),
-  ).filter(isVisibleElement);
+  const scope =
+    rootDocument.querySelector(cinemaLyricsSelector) ?? rootDocument;
+  return Array.from(
+    scope.querySelectorAll<HTMLElement>(spotifyLyricsLineSelector),
+  )
+    .filter((element) => !element.closest(`${lyricsPreviewSelector}, [inert]`))
+    .filter(isVisibleElement);
 }
 
 export function readSpotifyLyricsContainer(
@@ -217,6 +240,11 @@ export function readSpotifyLyricsContainer(
 export function readSpotifyLyricsPageContainer(
   rootDocument: Document = document,
 ): HTMLElement | null {
+  const cinemaHost = rootDocument
+    .querySelector(cinemaLyricsSelector)
+    ?.closest<HTMLElement>(spotifyCinemaScrollHostSelector);
+  if (cinemaHost) return cinemaHost;
+
   const lyricsContainer = readSpotifyLyricsContainer(rootDocument);
 
   return (
@@ -236,14 +264,17 @@ export function markNativeSpotifyLyricsHidden(
   rootDocument: Document = document,
   hidden: boolean,
 ) {
-  readVisibleSpotifyLyricElements(rootDocument).forEach((element) => {
-    if (hidden) {
-      element.setAttribute(nativeLyricsHiddenAttribute, 'true');
-      return;
-    }
-
-    element.removeAttribute(nativeLyricsHiddenAttribute);
-  });
+  if (hidden) {
+    readVisibleSpotifyLyricElements(rootDocument).forEach((element) =>
+      element.setAttribute(nativeLyricsHiddenAttribute, 'true'),
+    );
+  } else {
+    rootDocument
+      .querySelectorAll(`[${nativeLyricsHiddenAttribute}]`)
+      .forEach((element) =>
+        element.removeAttribute(nativeLyricsHiddenAttribute),
+      );
+  }
 }
 
 export function seekSpotifyPlaybackToMs(
@@ -605,8 +636,4 @@ function parseTimestampToMs(value: string): number | null {
 
 function uniqueValues(values: string[]): string[] {
   return Array.from(new Set(values));
-}
-
-function uniqueElements<T extends Element>(elements: T[]): T[] {
-  return Array.from(new Set(elements));
 }

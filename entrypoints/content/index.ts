@@ -1,4 +1,8 @@
 import type { ContentScriptContext } from 'wxt/utils/content-script-context';
+import {
+  findSpotifyAppRoot,
+  hasSpotifyLyricsSurface,
+} from '@/src/adapters/spotify/spotify-dom';
 
 type EsmContentModule = {
   default: (context: ContentScriptContext) => Promise<{ remove: () => void }>;
@@ -10,9 +14,7 @@ export default defineContentScript({
     let mounted: { remove: () => void } | null = null;
     let loading: Promise<void> | null = null;
 
-    const shouldLoad = () =>
-      window.location.pathname.includes('/lyrics') ||
-      Boolean(document.querySelector('[data-testid="lyrics-line"]'));
+    const shouldLoad = () => hasSpotifyLyricsSurface();
 
     const sync = () => {
       if (!shouldLoad()) {
@@ -47,7 +49,7 @@ export default defineContentScript({
 
     ctx.addEventListener(window, 'wxt:locationchange', scheduleSync);
     const observer = new MutationObserver(scheduleSync);
-    observer.observe(document.querySelector('main') ?? document.body, {
+    observer.observe(findSpotifyAppRoot(), {
       childList: true,
       subtree: true,
     });

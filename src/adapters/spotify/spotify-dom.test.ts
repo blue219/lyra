@@ -408,6 +408,37 @@ describe('readSpotifyLyricsContainer', () => {
 });
 
 describe('readSpotifyLyricsPageContainer', () => {
+  test('uses the cinema scroll host and ignores the sidebar lyrics preview', () => {
+    document.body.innerHTML = `
+      <aside data-testid="lyrics-npv-section">
+        <div data-testid="lyrics-line" aria-current="true">Preview</div>
+      </aside>
+      <main id="main-view" inert></main>
+      <div id="cinema-scroll" data-overlayscrollbars="host">
+        <div data-overlayscrollbars-viewport>
+          <div style="--cinema-mode-bg-color-from: #121212">
+            <div style="--lyrics-color-background: #121212">
+              <div><div data-testid="lyrics-line">First</div></div>
+              <div data-testid="lyrics-line" aria-current="true">Second</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+
+    expect(readSpotifyLyricsPageContainer(document)?.id).toBe('cinema-scroll');
+    expect(readSpotifyLyricsSnapshot(document)).toEqual({
+      activeLineIndex: 1,
+      lines: [
+        { timeMs: 0, original: 'First' },
+        { timeMs: 1, original: 'Second' },
+      ],
+    });
+
+    document.querySelector('#cinema-scroll')?.remove();
+    expect(readSpotifyLyricsSnapshot(document)).toBeNull();
+  });
+
   test('returns the lyrics container when lyric lines are available', () => {
     document.body.innerHTML = `
       <main data-testid="main">

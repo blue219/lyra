@@ -3,6 +3,7 @@ import { createShadowRootUi } from 'wxt/utils/content-script-ui/shadow-root';
 import type { ContentScriptContext } from 'wxt/utils/content-script-context';
 import replacementLyricsFontStyles from './replacement-lyrics-fonts.css?inline';
 
+import { spotifyCinemaScrollHostSelector } from '@/src/adapters/spotify/spotify-dom';
 import { ContentApp } from '@/src/ui/overlay/content-app';
 import { removeLegacyInlineLyrics } from '@/src/ui/overlay/legacy-cleanup';
 import './style.css';
@@ -81,6 +82,19 @@ function injectNativeLyricsOverride(): void {
       text-shadow: none !important;
     }
     .lyra-replacement-host { position: relative; z-index: 3; width: 100%; color: #fff; }
+    /* Keep Lyra below the cinema toolbar and outside Spotify's native scroller. */
+    ${spotifyCinemaScrollHostSelector} > .lyra-replacement-host {
+      position: absolute;
+      inset: 64px 0 0;
+      container-type: size;
+      --lyra-viewport-height: 100cqh;
+    }
+    /* Preserve the native layout and events that provide playback synchronization. */
+    ${spotifyCinemaScrollHostSelector} > .lyra-replacement-host ~ :is([data-overlayscrollbars-viewport], .os-scrollbar) {
+      opacity: 0 !important;
+      interactivity: inert;
+      pointer-events: none;
+    }
   `;
   document.head.append(style);
 }

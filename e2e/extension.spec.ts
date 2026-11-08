@@ -209,6 +209,69 @@ test('production extension flow', async () => {
 
     await page.goto('https://open.spotify.com/home');
     await expect(page.locator('lyra-overlay')).toHaveCount(0);
+
+    await page.evaluate(() => {
+      document.body.insertAdjacentHTML(
+        'beforeend',
+        `<aside data-testid="lyrics-npv-section">
+          <div data-testid="lyrics-line">Preview</div>
+        </aside>
+        <div aria-label="Now playing: Song by Artist">
+          <a href="/track/song">Song</a><a href="/artist/artist">Artist</a>
+        </div>`,
+      );
+    });
+    await page.evaluate(() => {
+      document.body.insertAdjacentHTML(
+        'beforeend',
+        `<div id="cinema" data-overlayscrollbars="host" style="position: relative; overflow: hidden; width: 100%; height: 400px">
+          <div data-overlayscrollbars-viewport style="height: 100%; overflow-y: scroll">
+            <div style="--cinema-mode-bg-color-from: #121212">
+              <div style="--lyrics-color-background: #121212; padding-top: 200px; height: 900px">
+                <div data-testid="lyrics-line" aria-current="true">Hello</div>
+                <div data-testid="lyrics-line">World</div>
+              </div>
+            </div>
+          </div>
+        </div>`,
+      );
+      document
+        .querySelectorAll('#cinema [data-testid="lyrics-line"]')
+        .forEach((line) =>
+          line.addEventListener('click', () => {
+            document
+              .querySelector('#cinema')
+              ?.setAttribute('data-seeked', line.textContent ?? '');
+          }),
+        );
+    });
+    const cinema = page.locator('#cinema');
+    const lyricsFrame = cinema.locator(
+      ':scope > [data-lyra-replacement-host] > [data-lyra-replacement-scroll]',
+    );
+    await expect(lyricsFrame).toBeVisible();
+    await expect(lyricsFrame).toHaveCSS('height', '336px');
+    await expect(cinema.locator('[data-overlayscrollbars-viewport]')).toHaveCSS(
+      'opacity',
+      '0',
+    );
+    await expect(page.getByRole('button', { name: /Preview/ })).toHaveCount(0);
+    const world = lyricsFrame.getByRole('button', { name: /World/ });
+    await cinema.locator('[data-testid="lyrics-line"]').evaluateAll((lines) => {
+      lines[0]?.removeAttribute('aria-current');
+      lines[1]?.setAttribute('aria-current', 'true');
+    });
+    await expect(world).toHaveAttribute('data-lyra-replacement-active', 'true');
+    await world.click();
+    await expect(cinema).toHaveAttribute('data-seeked', 'World');
+
+    await page.setViewportSize({ width: 390, height: 700 });
+    await expect(lyricsFrame).toHaveCSS('width', '374px');
+    await expect(lyricsFrame).toHaveCSS('height', '336px');
+
+    await cinema.evaluate((element) => element.remove());
+    await expect(page.locator('lyra-overlay')).toHaveCount(0);
+    await expect(page.getByText('Preview')).toBeVisible();
   } finally {
     await context?.close();
     await rm(profile, { recursive: true, force: true });

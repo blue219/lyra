@@ -120,7 +120,9 @@ describe('ReplacementLyrics', () => {
     expect(html).toContain('pointer-events:none');
     expect(html).toContain('position:sticky');
     expect(html).toContain('top:0');
-    expect(html).toContain('margin-bottom:calc(-1 * (100vh - 96px))');
+    expect(html).toContain(
+      'margin-bottom:calc(-1 * var(--lyra-viewport-height, calc(100vh - 96px)))',
+    );
     expect(html).toContain(
       'overflow-y:auto;position:relative;scroll-behavior:smooth;width:100%',
     );

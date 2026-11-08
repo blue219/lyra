@@ -9,6 +9,7 @@ import {
   createSpotifyDomAdapter,
   markNativeSpotifyLyricsHidden,
   seekSpotifyPlaybackToMs,
+  spotifyCinemaScrollHostSelector,
 } from '@/src/adapters/spotify/spotify-dom';
 import {
   requestCoverPalette,
@@ -96,12 +97,15 @@ export function ContentApp() {
     requestKey: lyricsRequestKey,
     activeLineIndex: syncedActiveLineIndex,
     spotifyLyricsLines,
-    currentTrack,
     coverImageUrl,
     playbackPositionMs,
     lyricsContainer,
   } = controllerState;
-  const settingsAnchor = readSettingsAnchor(lyricsContainer);
+  const settingsAnchor = readSettingsAnchor(
+    lyricsContainer?.matches(spotifyCinemaScrollHostSelector)
+      ? replacementHost
+      : lyricsContainer,
+  );
   const activeLineIndex = getVisibleActiveLineIndex({
     selectedLineIndex: getSelectedLineIndex(selectedLineState),
     syncedActiveLineIndex,
@@ -117,9 +121,12 @@ export function ContentApp() {
   }, [controller, isSettingsLoaded, settings.targetLanguage]);
 
   useEffect(() => {
-    setReplacementHost(
-      lyricsContainer ? ensureReplacementHost(document, lyricsContainer) : null,
-    );
+    if (!lyricsContainer) {
+      removeReplacementHosts(document);
+      setReplacementHost(null);
+      return;
+    }
+    setReplacementHost(ensureReplacementHost(document, lyricsContainer));
   }, [lyricsContainer]);
 
   useEffect(() => {
@@ -242,27 +249,25 @@ export function ContentApp() {
     seekSpotifyPlaybackToMs(selectedPlaybackPositionMs);
   }
 
-  if (!replacementHost && !currentTrack && spotifyLyricsLines.length === 0) {
+  if (!replacementHost) {
     return null;
   }
 
   return (
     <>
-      {replacementHost
-        ? createPortal(
-            <ReplacementLyrics
-              activeLineIndex={activeLineIndex}
-              coverPalette={coverPalette}
-              dynamicBackground={settings.dynamicBackground}
-              fontSize={settings.fontSize}
-              phase={phase}
-              lyrics={lyrics}
-              onLineSelect={selectReplacementLine}
-              targetLanguage={settings.targetLanguage}
-            />,
-            replacementHost,
-          )
-        : null}
+      {createPortal(
+        <ReplacementLyrics
+          activeLineIndex={activeLineIndex}
+          coverPalette={coverPalette}
+          dynamicBackground={settings.dynamicBackground}
+          fontSize={settings.fontSize}
+          phase={phase}
+          lyrics={lyrics}
+          onLineSelect={selectReplacementLine}
+          targetLanguage={settings.targetLanguage}
+        />,
+        replacementHost,
+      )}
 
       <SettingsEntry
         anchor={settingsAnchor}

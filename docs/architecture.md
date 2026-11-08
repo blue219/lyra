@@ -80,9 +80,10 @@ has a 25-second deadline; every individual HTTP attempt has an 8-second deadline
 ## ESM content UI loading
 
 The manifest content script is a lightweight gate. It watches Spotify SPA
-navigation and a small lyrics DOM surface. On the first `/lyrics` route or when a
-lyrics container appears, it loads `/content-scripts/esm/content.js` through an
-extension URL with Vite-ignore semantics.
+navigation and lyrics changes across the Spotify app root. On `/lyrics` or when a
+full lyrics surface appears, it loads `/content-scripts/esm/content.js` through
+an extension URL with Vite-ignore semantics. The Now Playing sidebar preview
+does not activate the gate.
 
 The ESM bundle is produced by a dedicated Vite build based on WXT's official ESM
 content-script example. WXT's development watcher rebuilds it and reloads the
@@ -96,7 +97,10 @@ the setting controls Aurora motion only. Normal application `import()` is not
 used as a content-script splitting mechanism.
 
 Replacement lyrics are rendered through a React portal into Spotify's lyrics
-container. Their scoped multi-script font rules are injected separately into the
+container. In expanded Now Playing, the portal mounts beside Spotify's native
+scroller. Lyra fills the space below the toolbar and handles its own scrolling
+while Spotify's original rows still supply timing and seek events. The scoped
+multi-script font rules are injected separately into the
 document head and removed when the ESM UI unmounts, so they apply outside the
 ShadowRoot without exposing the rest of Lyra's CSS to Spotify.
 
